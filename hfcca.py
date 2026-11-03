@@ -133,6 +133,9 @@ class FunctionInfo(object):
     def add_statement(self):
         self.statement_count += 1
 
+    def set_statement_count(self, count):
+        self.statement_count = count if count >= 0 else 0
+
     def add_goto(self):
         self.goto_count += 1
 
@@ -560,9 +563,38 @@ def _skip_case_label(tokens, idx, limit):
     return idx
 
 
+def _is_assign_token(tok):
+    if not isinstance(tok, str) or not tok or tok[0] in ('"', "'"):
+        return False
+    _stripped = tok.lstrip(']')
+    if _stripped in ASSIGN_OPERATORS:
+        return True
+    if _stripped.startswith(('=', '+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<=', '>>=')):
+        if not _stripped.startswith('=='):
+            return True
+        else:
+            # equality operator
+            pass
+    else:
+        # non-assignment token
+        pass
+    return False
+
+
+def _is_inc_dec_token(tok):
+    if not isinstance(tok, str) or not tok or tok[0] in ('"', "'"):
+        return False
+    if tok in INC_DEC_OPERATORS:
+        return True
+    if '++' in tok or '--' in tok:
+        return True
+    return False
+
+
 def _scan_simple_expr(tokens, idx, limit):
     _expr       = []
     _saw_assign = False
+    _saw_type_b = False
     _start      = idx
     while idx < limit:
         _tok = tokens[idx]
@@ -580,17 +612,26 @@ def _scan_simple_expr(tokens, idx, limit):
             _expr.extend(tokens[idx:_close + 1])
             idx = _close + 1
         elif _tok == '{':
-            if _saw_assign:
-                _close = _find_matching_delim(tokens, idx, limit, '{', '}')
+            _close = _find_matching_delim(tokens, idx, limit, '{', '}')
+            _is_brace_init = (
+                idx > _start
+                and tokens[idx - 1] != ')'
+                and ';' not in tokens[idx + 1:_close]
+                and _close + 1 < limit
+                and tokens[_close + 1] in (';', ',')
+            )
+            if _saw_assign or _saw_type_b or _is_brace_init:
                 _expr.extend(tokens[idx:_close + 1])
                 idx = _close + 1
             else:
                 break
         else:
-            if _tok in ASSIGN_OPERATORS:
+            if _is_assign_token(_tok):
                 _saw_assign = True
+            elif _tok in ('typedef', 'struct', 'union', 'enum'):
+                _saw_type_b = True
             else:
-                # non-assignment token
+                # regular token
                 pass
             _expr.append(_tok)
             idx += 1
@@ -1021,6 +1062,494 @@ def compute_his_path(func_tokens):
     return _total if _total >= 1 else 1
 
 
+_C_TYPE_SPECIFIERS = {
+    'void', 'char', 'short', 'int', 'long', 'float', 'double',
+    'signed', 'unsigned', 'bool', '_Bool', 'boolean',
+    'const', 'volatile', 'restrict', '__restrict', '__restrict__',
+    'inline', '__inline', '__inline__', 'register', 'auto',
+    'struct', 'union', 'enum', 'class', 'typename',
+    'size_t', 'ssize_t', 'ptrdiff_t', 'intptr_t', 'uintptr_t',
+    'int8_t', 'int16_t', 'int32_t', 'int64_t',
+    'uint8_t', 'uint16_t', 'uint32_t', 'uint64_t',
+    'sint8', 'sint16', 'sint32', 'sint64',
+    'uint8', 'uint16', 'uint32', 'uint64',
+    'float32', 'float64', 'Std_ReturnType'
+}
+
+_NON_EXEC_DECL_KEYWORDS = {
+    'typedef', 'extern', 'static', 'using', 'namespace',
+    'template', 'static_assert', '_Static_assert'
+}
+
+_DECL_ATTR_KEYWORDS = {
+    '__attribute__', '__declspec', '_Alignas', 'alignas',
+    'sizeof', 'typeof', '__typeof__', 'alignof', '_Alignof', 'decltype',
+    'P2FUNC', 'CONSTP2FUNC'
+}
+
+
+def _is_type_like_token(tok):
+    if not isinstance(tok, str) or not tok:
+        return False
+    if tok in _C_TYPE_SPECIFIERS:
+        return True
+    if tok.endswith(('_t', '_type', 'Type', '_T')):
+        return True
+    return False
+
+
+def _is_prototype_param_list(param_tokens):
+    if len(param_tokens) == 0:
+        return True
+    if param_tokens == ['void']:
+        return True
+
+    _parts   = []
+    _cur     = []
+    _p_depth = 0
+    _a_depth = 0
+    for _ptok in param_tokens:
+        if _ptok == '(':
+            _p_depth += 1
+            _cur.append(_ptok)
+        elif _ptok == ')' and _p_depth > 0:
+            _p_depth -= 1
+            _cur.append(_ptok)
+        elif _ptok == '<' and _p_depth == 0:
+            _a_depth += 1
+            _cur.append(_ptok)
+        elif _ptok == '>' and _p_depth == 0 and _a_depth > 0:
+            _a_depth -= 1
+            _cur.append(_ptok)
+        elif _ptok == ',' and _p_depth == 0 and _a_depth == 0:
+            _parts.append(_cur)
+            _cur = []
+        else:
+            _cur.append(_ptok)
+    _parts.append(_cur)
+
+    _expr_ops = {
+        '+', '-', '/', '%', '==', '!=', '<=', '>=',
+        '&&', '||', '.', '->', '?'
+    }
+    for _part in _parts:
+        if _part == ['...']:
+            return True
+        _id_cnt  = 0
+        _p_d     = 0
+        _a_d     = 0
+        _s_d     = 0
+        _has_op  = False
+        _prev_tk = None
+        for _tk in _part:
+            if _tk == '(':
+                _p_d += 1
+            elif _tk == ')' and _p_d > 0:
+                _p_d -= 1
+            elif _tk == '[' and _p_d == 0:
+                _s_d += 1
+            elif isinstance(_tk, str) and _tk.startswith(']') and _p_d == 0 and _s_d > 0:
+                _s_d -= 1
+            elif _tk == '<' and _p_d == 0 and _s_d == 0:
+                _a_d += 1
+            elif _tk == '>' and _p_d == 0 and _s_d == 0 and _a_d > 0:
+                _a_d -= 1
+            elif _p_d == 0 and _s_d == 0 and _a_d == 0:
+                if _is_type_like_token(_tk):
+                    return True
+                if _tk in _expr_ops:
+                    _has_op = True
+                elif isinstance(_tk, str) and _tk.isidentifier() and _prev_tk != '::':
+                    _id_cnt += 1
+                else:
+                    # pointer/reference or scope token
+                    pass
+            else:
+                # token nested inside brackets/parens/template
+                pass
+            _prev_tk = _tk
+        if not _has_op and _id_cnt >= 2:
+            return True
+        if not _has_op and len(_part) >= 2 and isinstance(_part[0], str) and _part[0].isidentifier() and _part[-1] in ('*', '&'):
+            return True
+    return False
+
+
+def _simple_expr_stmt_count(expr_tokens):
+    if not expr_tokens:
+        return 0
+
+    _top_tokens = []
+    _p_depth    = 0
+    _b_depth    = 0
+    for _tok in expr_tokens:
+        if _tok == '(':
+            _p_depth += 1
+        elif _tok == ')' and _p_depth > 0:
+            _p_depth -= 1
+        elif _tok == '{':
+            _b_depth += 1
+        elif _tok == '}' and _b_depth > 0:
+            _b_depth -= 1
+            if _p_depth == 0 and _b_depth == 0:
+                _top_tokens.append('{}')
+            else:
+                # nested brace close
+                pass
+        elif _p_depth == 0 and _b_depth == 0:
+            _top_tokens.append(_tok)
+        else:
+            # nested token inside parens or braces
+            pass
+
+    if any(_tok in _NON_EXEC_DECL_KEYWORDS for _tok in _top_tokens):
+        return 0
+
+    _first = expr_tokens[0]
+    if _first in ('asm', '__asm', '__asm__', 'delete', 'co_await', 'co_yield'):
+        return 1
+
+    # Count comma-separated top-level segments (outside <...> and [...]) that perform assignment
+    _assign_segs = 0
+    _brace_inits = 0
+    _has_type_kw = any(_tok in ('struct', 'union', 'enum', 'class') for _tok in _top_tokens)
+    _seg_assign  = False
+    _seg_brace   = False
+    _seg_ids     = 0
+    _a_d         = 0
+    _s_d         = 0
+    for _idx_t, _ttok in enumerate(_top_tokens):
+        if _ttok == '[':
+            _s_d += 1
+        elif isinstance(_ttok, str) and _ttok.startswith(']') and _s_d > 0:
+            _s_d -= 1
+            if _s_d == 0 and _a_d == 0 and _is_assign_token(_ttok):
+                _seg_assign = True
+            else:
+                # array bracket close without assignment
+                pass
+        elif (
+            _ttok == '<'
+            and _s_d == 0
+            and _idx_t > 0
+            and isinstance(_top_tokens[_idx_t - 1], str)
+            and _top_tokens[_idx_t - 1].isidentifier()
+            and not _seg_assign
+        ):
+            _a_d += 1
+        elif _ttok == '>' and _s_d == 0 and _a_d > 0:
+            _a_d -= 1
+        elif _ttok == ',' and _s_d == 0 and _a_d == 0:
+            if _seg_assign:
+                _assign_segs += 1
+            elif _seg_brace and not _has_type_kw and _seg_ids >= 1:
+                _brace_inits += 1
+            else:
+                # uninitialized segment
+                pass
+            _seg_assign = False
+            _seg_brace  = False
+            _seg_ids    = 0
+        elif _s_d == 0 and _a_d == 0:
+            if _is_assign_token(_ttok):
+                _seg_assign = True
+            elif _ttok == '{}':
+                _seg_brace = True
+            elif isinstance(_ttok, str) and _ttok.isidentifier():
+                _seg_ids += 1
+            else:
+                # other top-level token
+                pass
+        else:
+            # token inside subscript or template args
+            pass
+
+    if _seg_assign:
+        _assign_segs += 1
+    elif _seg_brace and not _has_type_kw and len(_top_tokens) >= 3 and _seg_ids >= 1:
+        _brace_inits += 1
+    else:
+        # trailing segment has no initializer
+        pass
+
+    if _assign_segs + _brace_inits > 0:
+        return _assign_segs + _brace_inits
+
+    if any(_is_inc_dec_token(_tok) for _tok in expr_tokens):
+        return 1
+
+    if _first == '(':
+        return 1
+
+    if '?' in _top_tokens:
+        return 1
+
+    if '(' not in expr_tokens or expr_tokens[-1] != ')':
+        return 0
+
+    if any(_tok in _DECL_ATTR_KEYWORDS for _tok in _top_tokens):
+        return 0
+
+    _first_p = expr_tokens.index('(')
+    _close_p = _find_matching_delim(expr_tokens, _first_p, len(expr_tokens), '(', ')')
+    _inner_p = expr_tokens[_first_p + 1:_close_p]
+
+    # Uninitialized function pointer declaration: Type (*fp)(params)
+    if _close_p + 1 < len(expr_tokens) and expr_tokens[_close_p + 1] == '(':
+        if len(_inner_p) >= 2 and _inner_p[0] in ('*', '^'):
+            return 0
+        else:
+            # chained call expression e.g. get_fn(id)(arg)
+            pass
+
+    # Macro-prefixed prototype declaration: FUNC(void, CODE) helper(void)
+    if _close_p + 1 < len(expr_tokens):
+        _after_p = expr_tokens[_close_p + 1]
+        if isinstance(_after_p, str) and _after_p.isidentifier():
+            return 0
+        else:
+            # member access or binary operator following call
+            pass
+
+    _prefix = expr_tokens[:_first_p]
+    if '.' in _prefix or '->' in _prefix:
+        return 1
+
+    _qual_id_cnt = 0
+    _a_depth     = 0
+    _s_depth     = 0
+    _prev_ptok   = None
+    for _ptok in _prefix:
+        if _ptok == '[':
+            _s_depth += 1
+        elif isinstance(_ptok, str) and _ptok.startswith(']') and _s_depth > 0:
+            _s_depth -= 1
+        elif _ptok == '<' and _s_depth == 0:
+            _a_depth += 1
+        elif _ptok == '>' and _s_depth == 0 and _a_depth > 0:
+            _a_depth -= 1
+        elif _s_depth == 0 and _a_depth == 0:
+            if isinstance(_ptok, str) and _ptok.isidentifier() and _prev_ptok != '::':
+                _qual_id_cnt += 1
+            else:
+                # operator or scope separator
+                pass
+        else:
+            # template or subscript token
+            pass
+        _prev_ptok = _ptok
+
+    if _qual_id_cnt >= 2:
+        if _is_prototype_param_list(_inner_p):
+            return 0
+        else:
+            # C++ direct constructor initialization e.g. LockGuard lk(mtx);
+            return 1
+
+    return 1
+
+
+def _count_his_stmt_seq(tokens, start_idx=0, end_idx=None):
+    _limit = len(tokens) if end_idx is None else end_idx
+    _total = 0
+    _idx   = start_idx
+
+    while _idx < _limit:
+        if tokens[_idx] == '}':
+            _idx += 1
+            continue
+
+        _stmt_cnt, _next_idx = _count_his_stmt_node(tokens, _idx, _limit)
+        if _next_idx <= _idx:
+            _next_idx = _idx + 1
+        else:
+            # parser advanced
+            pass
+        _total += _stmt_cnt
+        _idx    = _next_idx
+
+    return _total
+
+
+def _count_his_stmt_node(tokens, idx, limit):
+    while idx < limit:
+        _ltok = tokens[idx]
+        if _ltok == 'case':
+            idx = _skip_case_label(tokens, idx + 1, limit)
+            continue
+        elif _ltok == 'default' and idx + 1 < limit and tokens[idx + 1] == ':':
+            idx += 2
+            continue
+        elif (
+            idx + 1 < limit
+            and isinstance(_ltok, str)
+            and _ltok not in _STMT_BOUNDARY_KEYWORDS
+            and _ltok.isidentifier()
+            and tokens[idx + 1] == ':'
+        ):
+            idx += 2
+            continue
+        else:
+            break
+
+    if idx >= limit or tokens[idx] == '}':
+        return 0, idx
+
+    _tok = tokens[idx]
+
+    if isinstance(_tok, tuple) and _tok[0] == '#PP_BRANCHES':
+        _best_cnt = 0
+        for _br_slice in _tok[1]:
+            _cnt = _count_his_stmt_seq(list(_br_slice))
+            if _cnt > _best_cnt:
+                _best_cnt = _cnt
+            else:
+                # branch does not exceed max statements
+                pass
+        return _best_cnt, idx + 1
+
+    if _tok == '{':
+        _close_b = _find_matching_delim(tokens, idx, limit, '{', '}')
+        _cnt     = _count_his_stmt_seq(tokens, idx + 1, _close_b)
+        return _cnt, _close_b + 1
+
+    if _tok == ';':
+        return 0, idx + 1
+
+    if _tok == 'if':
+        # iterative parsing of if / else if / else ladders to avoid deep recursion
+        _total = 0
+        while True:
+            _total += 1
+            idx    += 1
+            if idx < limit and tokens[idx] == '(':
+                _close_p = _find_matching_delim(tokens, idx, limit, '(', ')')
+                idx      = _close_p + 1
+            else:
+                # malformed if without condition parens
+                pass
+
+            if idx < limit:
+                _then_cnt, idx = _count_his_stmt_node(tokens, idx, limit)
+                _total        += _then_cnt
+            else:
+                # trailing if
+                pass
+
+            if idx < limit and tokens[idx] == 'else':
+                idx += 1
+                if idx < limit and tokens[idx] == 'if':
+                    continue
+                elif idx < limit:
+                    _else_cnt, idx = _count_his_stmt_node(tokens, idx, limit)
+                    _total        += _else_cnt
+                    break
+                else:
+                    break
+            else:
+                break
+        return _total, idx
+
+    if _tok in ('while', 'for', 'switch'):
+        _total = 1
+        idx   += 1
+        if idx < limit and tokens[idx] == '(':
+            _close_p = _find_matching_delim(tokens, idx, limit, '(', ')')
+            idx      = _close_p + 1
+        else:
+            # control keyword without parens
+            pass
+        if idx < limit:
+            _body_cnt, idx = _count_his_stmt_node(tokens, idx, limit)
+            _total        += _body_cnt
+        else:
+            # trailing control keyword
+            pass
+        return _total, idx
+
+    if _tok == 'do':
+        _total = 1
+        idx   += 1
+        if idx < limit:
+            _body_cnt, idx = _count_his_stmt_node(tokens, idx, limit)
+            _total        += _body_cnt
+        else:
+            # trailing do
+            pass
+        if idx < limit and tokens[idx] == 'while':
+            idx += 1
+            if idx < limit and tokens[idx] == '(':
+                _close_p = _find_matching_delim(tokens, idx, limit, '(', ')')
+                idx      = _close_p + 1
+            else:
+                # do-while missing parens
+                pass
+            if idx < limit and tokens[idx] == ';':
+                idx += 1
+            else:
+                # missing semicolon after do-while
+                pass
+        else:
+            # malformed do without while
+            pass
+        return _total, idx
+
+    if _tok == 'try':
+        _total = 1
+        idx   += 1
+        if idx < limit:
+            _try_cnt, idx = _count_his_stmt_node(tokens, idx, limit)
+            _total       += _try_cnt
+        else:
+            # trailing try
+            pass
+        while idx < limit and tokens[idx] == 'catch':
+            idx += 1
+            if idx < limit and tokens[idx] == '(':
+                _close_p = _find_matching_delim(tokens, idx, limit, '(', ')')
+                idx      = _close_p + 1
+            else:
+                # catch without parens
+                pass
+            if idx < limit:
+                _catch_cnt, idx = _count_his_stmt_node(tokens, idx, limit)
+                _total         += _catch_cnt
+            else:
+                break
+        return _total, idx
+
+    if _tok in ('return', 'throw', 'goto'):
+        _, idx = _scan_simple_expr(tokens, idx + 1, limit)
+        return 1, idx
+
+    if _tok in ('break', 'continue'):
+        idx += 1
+        if idx < limit and tokens[idx] == ';':
+            idx += 1
+        else:
+            # missing semicolon
+            pass
+        return 1, idx
+
+    if _tok == 'else':
+        idx += 1
+        if idx < limit:
+            return _count_his_stmt_node(tokens, idx, limit)
+        return 0, idx
+
+    _expr, idx = _scan_simple_expr(tokens, idx, limit)
+    _stmt_cnt  = _simple_expr_stmt_count(_expr)
+    return _stmt_cnt, idx
+
+
+def compute_his_stmt(func_tokens):
+    if not func_tokens:
+        return 0
+    _norm_tokens = _normalize_pp_blocks(func_tokens)
+    _total       = _count_his_stmt_seq(_norm_tokens)
+    return _total if _total >= 0 else 0
+
+
 """*************************************************************************************************
 ****************************************************************************************************
 *************************************************************************************************"""
@@ -1243,7 +1772,6 @@ class UniversalAnalyzer(list):
             self.pending_exit = True
             self.exit_depth = self.nesting_depth
         elif text in (';', 'if', 'for', 'while', 'switch', 'do'):
-            self.current_function.add_statement()
             if text == ';':
                 if self.awaiting_if_body and len(self.if_stack) > 0 and not self.if_stack[-1].get('has_brace', False):
                     self.expecting_else_for = self.if_stack.pop()
@@ -1365,6 +1893,7 @@ class UniversalAnalyzer(list):
                             # variable referenced in function body
                             pass
                     self.current_function.set_path_count(compute_his_path(self.func_body_tokens))
+                    self.current_function.set_statement_count(compute_his_stmt(self.func_body_tokens))
                     self.current_function.finalize_metrics()
                 else:
                     # no function object
