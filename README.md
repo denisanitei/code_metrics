@@ -60,7 +60,7 @@ All parameters are specified as child keys under the `code_metrics` section of t
 | Parameter | Type | Default | Metric / Standard | Description |
 | :--- | :---: | :---: | :--- | :--- |
 | `report_out_path` | `str` | *target build dir* | General | Output directory for the generated XML, HTML, and JUnit reports. Relative paths are resolved against project root. |
-| `cc_threshold` | `int` | `20` | HIS `v(G)` / cyclomatic | Maximum allowed McCabe Cyclomatic Complexity per function. Evaluates decision density. Recommended OEM limit: `<= 15`. |
+| `cc_threshold` | `int` | `20` | HIS `v(G)` / cyclomatic | Maximum allowed classic McCabe Cyclomatic Complexity per function ($M = 1 + \text{decision points}$, excluding `&&`/`||` short-circuit branches). Evaluates decision density. Recommended OEM limit: `<= 15`. |
 | `nloc_threshold` | `int` | `200` | HIS `COMF` / size | Maximum allowed Non-Comment Lines of Code per function or file. Recommended limit: `<= 100` (functions), `<= 200` (files). |
 | `min_comment_ratio` | `float` | `10.0` | HIS `CCRP` / comments | Minimum allowed comment density ratio (%), calculated as: $\frac{\text{comments}}{\text{NLOC} + \text{comments}} \times 100$. |
 | `param_threshold` | `int` | `5` | HIS `PARAM` / stability | Maximum allowed formal parameters per function. Evaluates interface clarity and coupling. |

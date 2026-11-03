@@ -598,14 +598,15 @@ class TokenTranslatorBase:
         else:
             return self._state(token)
     def remove_hash_if(self):
-        self.conditions.remove("#if")
+        self.conditions.discard("#if")
 
 
 class CTokenTranslator(TokenTranslatorBase):
 
     def __init__(self):
         TokenTranslatorBase.__init__(self)
-        self.conditions            = set(['if', 'for', 'while', '&&', '||', 'case', '?', '#if', 'catch'])
+        # classic McCabe cyclomatic complexity: M = 1 + decision points (excludes &&, ||, #if)
+        self.conditions            = set(['if', 'for', 'while', 'case', '?', 'catch'])
         self.bracket_level         = 0
         self.br_count              = 0
         self.last_preprocessor     = None
@@ -1241,7 +1242,7 @@ def createHfccaCommandLineParser():
             dest="xml",
             default=None)
     parser.add_option("-P", "--no_preprocessor_count",
-            help="By default, a #if will also increase the complexity. Adding this option to ignore them",
+            help="Ignore preprocessor #if directives in complexity calculation (ignored by default in classic McCabe mode)",
             action="store_true",
             dest="no_preprocessor_count",
             default=False)
