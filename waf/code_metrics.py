@@ -43,8 +43,11 @@ SLOC_THRESHOLD = 70
 # executable lines of code threshold
 ELOC_THRESHOLD = 50
 
-# comment count / nloc ratio threshold
+# minimum function comment density ratio (cdrp) threshold (%)
 MIN_COMMENT_RATIO = 10
+
+# minimum file comment density ratio (cdrp) threshold (%)
+MIN_FILE_COMMENT_RATIO = 10
 
 # maximum function parameters threshold (his stability)
 PARAM_THRESHOLD = 5
@@ -648,6 +651,7 @@ def process_cc(self):
     global SLOC_THRESHOLD
     global ELOC_THRESHOLD
     global MIN_COMMENT_RATIO
+    global MIN_FILE_COMMENT_RATIO
     global PARAM_THRESHOLD
     global RETURN_THRESHOLD
     global NESTING_DEPTH_THRESHOLD
@@ -681,6 +685,7 @@ def process_cc(self):
     SLOC_THRESHOLD            = yaml_opts.get('sloc_threshold', SLOC_THRESHOLD)
     ELOC_THRESHOLD            = yaml_opts.get('eloc_threshold', ELOC_THRESHOLD)
     MIN_COMMENT_RATIO         = yaml_opts.get('min_comment_ratio', MIN_COMMENT_RATIO)
+    MIN_FILE_COMMENT_RATIO    = yaml_opts.get('min_file_comment_ratio', MIN_FILE_COMMENT_RATIO)
     PARAM_THRESHOLD           = yaml_opts.get('param_threshold', PARAM_THRESHOLD)
     RETURN_THRESHOLD          = yaml_opts.get('return_threshold', RETURN_THRESHOLD)
     NESTING_DEPTH_THRESHOLD   = yaml_opts.get('nesting_depth_threshold', NESTING_DEPTH_THRESHOLD)
@@ -722,9 +727,15 @@ def process_cc(self):
         pass
 
     if 'min_comment_ratio' in yaml_opts:
-        Logs.pprint("CYAN", "Minimum Comment Ratio: %s" % MIN_COMMENT_RATIO)
+        Logs.pprint("CYAN", "Minimum Function Comment Ratio (CDRP): %s" % MIN_COMMENT_RATIO)
     else:
         # min comment ratio not configured
+        pass
+
+    if 'min_file_comment_ratio' in yaml_opts:
+        Logs.pprint("CYAN", "Minimum File Comment Ratio (CDRP): %s" % MIN_FILE_COMMENT_RATIO)
+    else:
+        # min file comment ratio not configured
         pass
 
     if 'param_threshold' in yaml_opts:
@@ -989,7 +1000,7 @@ class cc_xml2html(Task):
                 _sloc           = int(_func.find("sloc").text) if _func.find("sloc") is not None else 0
                 _eloc           = int(_func.find("eloc").text) if _func.find("eloc") is not None else 0
                 _com_cnt        = int(_func.find("comment_count").text)
-                _ccrp           = (_com_cnt / (_nloc + _com_cnt)) * 100 if _nloc + _com_cnt != 0 else 0
+                _cdrp           = (_com_cnt / (_nloc + _com_cnt)) * 100 if _nloc + _com_cnt != 0 else 0
                 _param_count    = int(_func.find("parameter_count").text) if _func.find("parameter_count") is not None else 0
                 _return_count   = int(_func.find("return_count").text) if _func.find("return_count") is not None else 0
                 _max_nesting    = int(_func.find("max_nesting_depth").text) if _func.find("max_nesting_depth") is not None else 0
@@ -1032,7 +1043,7 @@ class cc_xml2html(Task):
                             'sline'             : _func.find("start_line").text,
                             'pcnt'              : _param_count,
                             'ccnt'              : _com_cnt,
-                            'ccrp'              : "%.2f" % (float(_ccrp),),
+                            'cdrp'              : "%.2f" % (float(_cdrp),),
                             'ret_cnt'           : _return_count,
                             'nesting'           : _max_nesting,
                             'stmt_cnt'          : _stmt_cnt,
@@ -1071,6 +1082,8 @@ class cc_xml2html(Task):
                 _avg_sloc           = float(_obj.find("average_SLOC").text) if _obj.find("average_SLOC") is not None else 0.0
                 _eloc_cnt           = int(_obj.find("eloc").text) if _obj.find("eloc") is not None else 0
                 _avg_eloc           = float(_obj.find("average_ELOC").text) if _obj.find("average_ELOC") is not None else 0.0
+                _obj_cdrp_el        = _obj.find("cdrp") if _obj.find("cdrp") is not None else _obj.find("ccrp")
+                _obj_cdrp_val       = float(_obj_cdrp_el.text) if _obj_cdrp_el is not None else 0.0
                 _file_gitlab_url    = get_gitlab_url(
                     _file_abs_path,
                     None,
@@ -1092,7 +1105,7 @@ class cc_xml2html(Task):
                             'tok'               : _obj.find("token").text,
                             'atok'              : "%.2f" % (float(_obj.find("average_token").text),),
                             'ccnt'              : _obj.find("com_cnt").text,
-                            'ccrp'              : "%.2f" % (float(_obj.find("ccrp").text),),
+                            'cdrp'              : "%.2f" % (_obj_cdrp_val,),
                             'line_cnt'          : _line_count,
                             'static_decls'      : _static_decls,
                             'unreachable_stmts' : _unreachable_stmts,
@@ -1116,6 +1129,7 @@ class cc_xml2html(Task):
         _has_sloc           = _yaml_opts.get('sloc_threshold') is not None
         _has_eloc           = _yaml_opts.get('eloc_threshold') is not None
         _has_cr             = _yaml_opts.get('min_comment_ratio') is not None
+        _has_file_cr        = _yaml_opts.get('min_file_comment_ratio') is not None
         _has_param          = _yaml_opts.get('param_threshold') is not None
         _has_return         = _yaml_opts.get('return_threshold') is not None
         _has_nest           = _yaml_opts.get('nesting_depth_threshold') is not None
@@ -1140,31 +1154,33 @@ class cc_xml2html(Task):
                 _fout.write(
                     _template.render(
                         FUNC_DATA=dumps(list(_func_data.values())),
-                        TH_CC=CC_THRESHOLD,
-                        TH_NLOC=NLOC_THRESHOLD,
-                        TH_SLOC=SLOC_THRESHOLD,
-                        TH_ELOC=ELOC_THRESHOLD,
-                        COMMENT_RATIO=MIN_COMMENT_RATIO,
-                        TH_PARAM=PARAM_THRESHOLD,
-                        TH_RETURN=RETURN_THRESHOLD,
-                        TH_NESTING=NESTING_DEPTH_THRESHOLD,
-                        TH_STMT=STMT_THRESHOLD,
-                        TH_VOCF=VOCF_THRESHOLD,
-                        TH_GOTO=GOTO_THRESHOLD,
-                        TH_CALLING=CALLING_THRESHOLD,
-                        TH_PATH=PATH_THRESHOLD,
-                        TH_REC=REC_THRESHOLD,
-                        TH_DEAD=DEAD_CODE_THRESHOLD,
-                        TH_CALLS=CALLS_THRESHOLD,
-                        TH_CALL_DEPTH=CALL_DEPTH_THRESHOLD,
-                        TH_FILE_LINES=FILE_LINES_THRESHOLD,
-                        TH_STATIC_DECLS=STATIC_DECLS_THRESHOLD,
-                        TH_IF_NO_ELSE=IF_WITHOUT_ELSE_THRESHOLD,
+                        TH_CC=_yaml_opts.get('cc_threshold', CC_THRESHOLD),
+                        TH_NLOC=_yaml_opts.get('nloc_threshold', NLOC_THRESHOLD),
+                        TH_SLOC=_yaml_opts.get('sloc_threshold', SLOC_THRESHOLD),
+                        TH_ELOC=_yaml_opts.get('eloc_threshold', ELOC_THRESHOLD),
+                        COMMENT_RATIO=_yaml_opts.get('min_comment_ratio') if _yaml_opts.get('min_comment_ratio') is not None else MIN_COMMENT_RATIO,
+                        FILE_COMMENT_RATIO=_yaml_opts.get('min_file_comment_ratio') if _yaml_opts.get('min_file_comment_ratio') is not None else MIN_FILE_COMMENT_RATIO,
+                        TH_PARAM=_yaml_opts.get('param_threshold', PARAM_THRESHOLD),
+                        TH_RETURN=_yaml_opts.get('return_threshold', RETURN_THRESHOLD),
+                        TH_NESTING=_yaml_opts.get('nesting_depth_threshold', NESTING_DEPTH_THRESHOLD),
+                        TH_STMT=_yaml_opts.get('stmt_threshold', STMT_THRESHOLD),
+                        TH_VOCF=_yaml_opts.get('vocf_threshold', VOCF_THRESHOLD),
+                        TH_GOTO=_yaml_opts.get('goto_threshold', GOTO_THRESHOLD),
+                        TH_CALLING=_yaml_opts.get('calling_threshold', CALLING_THRESHOLD),
+                        TH_PATH=_yaml_opts.get('path_threshold', PATH_THRESHOLD),
+                        TH_REC=_yaml_opts.get('rec_threshold', REC_THRESHOLD),
+                        TH_DEAD=_yaml_opts.get('unreachable_statements_threshold', _yaml_opts.get('dead_code_threshold', DEAD_CODE_THRESHOLD)),
+                        TH_CALLS=_yaml_opts.get('calls_threshold', CALLS_THRESHOLD),
+                        TH_CALL_DEPTH=_yaml_opts.get('call_depth_threshold', CALL_DEPTH_THRESHOLD),
+                        TH_FILE_LINES=_yaml_opts.get('file_lines_threshold', FILE_LINES_THRESHOLD),
+                        TH_STATIC_DECLS=_yaml_opts.get('static_declarations_threshold', STATIC_DECLS_THRESHOLD),
+                        TH_IF_NO_ELSE=_yaml_opts.get('if_without_else_threshold', IF_WITHOUT_ELSE_THRESHOLD),
                         HAS_CC=_has_cc,
                         HAS_NLOC=_has_nloc,
                         HAS_SLOC=_has_sloc,
                         HAS_ELOC=_has_eloc,
                         HAS_COMMENT_RATIO=_has_cr,
+                        HAS_FILE_COMMENT_RATIO=_has_file_cr,
                         HAS_PARAM=_has_param,
                         HAS_RETURN=_has_return,
                         HAS_NESTING=_has_nest,
@@ -1213,6 +1229,7 @@ class cc_xml2junit(Task):
         global SLOC_THRESHOLD
         global ELOC_THRESHOLD
         global MIN_COMMENT_RATIO
+        global MIN_FILE_COMMENT_RATIO
         global PARAM_THRESHOLD
         global RETURN_THRESHOLD
         global NESTING_DEPTH_THRESHOLD
@@ -1273,7 +1290,10 @@ class cc_xml2junit(Task):
         _th_rec               = _yaml_opts.get('rec_threshold', REC_THRESHOLD)
         _th_dead              = _yaml_opts.get('unreachable_statements_threshold', _yaml_opts.get('dead_code_threshold', DEAD_CODE_THRESHOLD))
         _th_call_depth        = _yaml_opts.get('call_depth_threshold', CALL_DEPTH_THRESHOLD)
-        _th_cr                = float(_yaml_opts.get('min_comment_ratio', MIN_COMMENT_RATIO))
+        _raw_cr               = _yaml_opts.get('min_comment_ratio', MIN_COMMENT_RATIO)
+        _th_cr                = float(_raw_cr) if _raw_cr is not None else float(MIN_COMMENT_RATIO)
+        _raw_file_cr          = _yaml_opts.get('min_file_comment_ratio', MIN_FILE_COMMENT_RATIO)
+        _th_file_cr           = float(_raw_file_cr) if _raw_file_cr is not None else float(MIN_FILE_COMMENT_RATIO)
         _th_nloc              = _yaml_opts.get('nloc_threshold', NLOC_THRESHOLD)
         _th_sloc              = _yaml_opts.get('sloc_threshold', SLOC_THRESHOLD)
         _th_eloc              = _yaml_opts.get('eloc_threshold', ELOC_THRESHOLD)
@@ -1301,10 +1321,11 @@ class cc_xml2junit(Task):
                 _start_line   = _func.find("start_line").text if _func.find("start_line") is not None else "1"
                 _nloc_val     = int(_func.find("nloc").text) if _func.find("nloc") is not None else 0
                 _com_cnt      = int(_func.find("comment_count").text) if _func.find("comment_count") is not None else 0
-                if 0 == _nloc_val:
-                    _com_ratio = 100.0
+                _com_denom    = _nloc_val + _com_cnt
+                if 0 == _com_denom:
+                    _com_ratio = 0.0
                 else:
-                    _com_ratio = (float(_com_cnt) / float(_nloc_val)) * 100.0
+                    _com_ratio = (float(_com_cnt) / float(_com_denom)) * 100.0
 
                 _func_item    = {
                     "name"       : _func_name,
@@ -1327,7 +1348,7 @@ class cc_xml2junit(Task):
                     "dead"       : int(_func.find("dead_code_count").text) if _func.find("dead_code_count") is not None else 0,
                     "call_depth" : int(_func.find("call_depth").text) if _func.find("call_depth") is not None else 1,
                     "if_no_else" : int(_func.find("if_without_else_count").text) if _func.find("if_without_else_count") is not None else 0,
-                    "cr"         : _com_ratio
+                    "cdrp"       : _com_ratio
                 }
                 _funcs_data.append(_func_item)
         else:
@@ -1345,7 +1366,8 @@ class cc_xml2junit(Task):
                 _nloc_val     = int(_source.find("nloc").text) if _source.find("nloc") is not None else 0
                 _line_count   = int(_source.find("line_count").text) if _source.find("line_count") is not None else _nloc_val
                 _static_decls = int(_source.find("static_declarations_count").text) if _source.find("static_declarations_count") is not None else 0
-                _ccrp_val     = float(_source.find("ccrp").text) if _source.find("ccrp") is not None else 0.0
+                _src_cdrp_el  = _source.find("cdrp") if _source.find("cdrp") is not None else _source.find("ccrp")
+                _cdrp_val     = float(_src_cdrp_el.text) if _src_cdrp_el is not None else 0.0
 
                 _source_item  = {
                     "name"         : _file_name,
@@ -1354,7 +1376,7 @@ class cc_xml2junit(Task):
                     "nloc"         : _nloc_val,
                     "line_cnt"     : _line_count,
                     "static_decls" : _static_decls,
-                    "ccrp"         : _ccrp_val
+                    "cdrp"         : _cdrp_val
                 }
                 _sources_data.append(_source_item)
         else:
@@ -1506,9 +1528,9 @@ class cc_xml2junit(Task):
                 "data_items" : _funcs_data
             },
             {
-                "suite_name" : "Function Comment Ratio (CR)",
+                "suite_name" : "Function Comment Ratio (CDRP)",
                 "is_active"  : (_yaml_opts.get('min_comment_ratio') is not None) if _opts_present else True,
-                "metric_key" : "cr",
+                "metric_key" : "cdrp",
                 "threshold"  : _th_cr,
                 "operator"   : ">=",
                 "is_float"   : True,
@@ -1572,10 +1594,10 @@ class cc_xml2junit(Task):
                 "data_items" : _sources_data
             },
             {
-                "suite_name" : "Minimum Comment Ratio (CCRP)",
-                "is_active"  : (_yaml_opts.get('min_comment_ratio') is not None) if _opts_present else True,
-                "metric_key" : "ccrp",
-                "threshold"  : _th_cr,
+                "suite_name" : "Minimum File Comment Ratio (CDRP)",
+                "is_active"  : (_yaml_opts.get('min_file_comment_ratio') is not None) if _opts_present else True,
+                "metric_key" : "cdrp",
+                "threshold"  : _th_file_cr,
                 "operator"   : ">=",
                 "is_float"   : True,
                 "unit"       : "%",

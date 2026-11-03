@@ -10,7 +10,8 @@
         var func_data = {{FUNC_DATA}};
         var obj_data = {{OBJ_DATA}};
         var th_cc = {{TH_CC}};
-        var th_ccrp = {{COMMENT_RATIO}};
+        var th_cdrp = {{COMMENT_RATIO}};
+        var th_file_cdrp = {{FILE_COMMENT_RATIO if FILE_COMMENT_RATIO is defined else 10}};
         var th_nloc = {{TH_NLOC}};
         var th_sloc = {{TH_SLOC if TH_SLOC is defined else 70}};
         var th_eloc = {{TH_ELOC if TH_ELOC is defined else 50}};
@@ -36,6 +37,7 @@
         var has_sloc = {{ 'true' if (HAS_SLOC is defined and HAS_SLOC) else 'false' }};
         var has_eloc = {{ 'true' if (HAS_ELOC is defined and HAS_ELOC) else 'false' }};
         var has_comment_ratio = {{ 'true' if (HAS_COMMENT_RATIO is defined and HAS_COMMENT_RATIO) else 'false' }};
+        var has_file_comment_ratio = {{ 'true' if (HAS_FILE_COMMENT_RATIO is defined and HAS_FILE_COMMENT_RATIO) else 'false' }};
         var has_param = {{ 'true' if (HAS_PARAM is defined and HAS_PARAM) else 'false' }};
         var has_return = {{ 'true' if (HAS_RETURN is defined and HAS_RETURN) else 'false' }};
         var has_nesting = {{ 'true' if (HAS_NESTING is defined and HAS_NESTING) else 'false' }};
@@ -299,6 +301,8 @@
         var topFileLinesChart = null;
         var crChart = null;
         var topCrChart = null;
+        var fileCrChart = null;
+        var topFileCrChart = null;
 
         var ccBinsData = [];
         var vocfBinsData = [];
@@ -320,6 +324,7 @@
         var ifNoElseBinsData = [];
         var fileLinesBinsData = [];
         var crBinsData = [];
+        var fileCrBinsData = [];
 
         var top10FuncsData = [];
         var top10VocfData = [];
@@ -341,6 +346,7 @@
         var top10IfNoElseData = [];
         var top10FileLinesData = [];
         var top10CrData = [];
+        var top10FileCrData = [];
 
         // Application State
         var funcState = {
@@ -360,6 +366,7 @@
             filteredData: [],
             searchTerm: '',
             violationFilter: 'all',
+            chartFilter: null,
             sortColumn: 'nloc',
             sortAsc: false,
             pageSize: 50,
@@ -470,6 +477,10 @@
                 drawCommentRatioDistributionChart();
                 drawTopCommentRatioFunctionsChart();
             }
+            if (has_file_comment_ratio) {
+                drawFileCommentRatioDistributionChart();
+                drawTopFileCommentRatioFilesChart();
+            }
         }
 
         window.addEventListener('resize', function() {
@@ -490,7 +501,7 @@
                 var nloc = parseInt(f.nloc);
                 var sloc = parseInt(f.sloc) || 0;
                 var eloc = parseInt(f.eloc) || 0;
-                var ccrp = parseFloat(f.ccrp);
+                var cdrp = parseFloat(f.cdrp);
                 var pcnt = parseInt(f.pcnt) || 0;
                 var ret_cnt = parseInt(f.ret_cnt) || 0;
                 var nesting = parseInt(f.nesting) || 0;
@@ -510,7 +521,7 @@
                     (has_nloc && nloc > th_nloc) ||
                     (has_sloc && sloc > th_sloc) ||
                     (has_eloc && eloc > th_eloc) ||
-                    (has_comment_ratio && ccrp < th_ccrp) ||
+                    (has_comment_ratio && cdrp < th_cdrp) ||
                     (has_param && pcnt > th_param) ||
                     (has_return && ret_cnt > th_return) ||
                     (has_nesting && nesting > th_nesting) ||
@@ -538,7 +549,7 @@
             var fileViolations = 0;
             obj_data.forEach(function(o) {
                 var nloc = parseInt(o.nloc);
-                var ccrp = parseFloat(o.ccrp);
+                var cdrp = parseFloat(o.cdrp);
                 var line_cnt = parseInt(o.line_cnt) || nloc;
                 var static_decls = parseInt(o.static_decls) || 0;
                 totalNLOC += nloc;
@@ -547,7 +558,7 @@
                 totalComments += parseInt(o.ccnt);
                 var isFileViol = (
                     (has_nloc && nloc > th_nloc) ||
-                    (has_comment_ratio && ccrp < th_ccrp) ||
+                    (has_file_comment_ratio && cdrp < th_file_cdrp) ||
                     (has_file_lines && line_cnt > th_file_lines) ||
                     (has_static_decls && static_decls > th_static_decls)
                 );
@@ -555,7 +566,7 @@
                     fileViolations++;
                 }
             });
-            var overallCommentRatio = totalNLOC > 0 ? ((totalComments / totalNLOC) * 100).toFixed(2) : '0';
+            var overallCommentRatio = (totalNLOC + totalComments) > 0 ? ((totalComments / (totalNLOC + totalComments)) * 100).toFixed(2) : '0';
 
             document.getElementById('total-functions').innerText = formatInt(totalFunctions);
             document.getElementById('total-files').innerText = formatInt(totalFiles);
@@ -822,14 +833,25 @@
                     unitName: 'files'
                 },
                 {
-                    id: 'range-bar-ccrp',
+                    id: 'range-bar-cdrp',
                     hasMetric: has_comment_ratio,
-                    scope: 'obj',
-                    filterKey: 'ccrp',
-                    threshold: th_ccrp,
-                    thresholdLabel: th_ccrp + '%',
+                    scope: 'func',
+                    filterKey: 'cdrp',
+                    threshold: th_cdrp,
+                    thresholdLabel: th_cdrp + '%',
                     isLowerLimit: true,
-                    getValue: function(o) { return parseFloat(o.ccrp); },
+                    getValue: function(f) { return parseFloat(f.cdrp); },
+                    unitName: 'functions'
+                },
+                {
+                    id: 'range-bar-file_cdrp',
+                    hasMetric: has_file_comment_ratio,
+                    scope: 'obj',
+                    filterKey: 'cdrp',
+                    threshold: th_file_cdrp,
+                    thresholdLabel: th_file_cdrp + '%',
+                    isLowerLimit: true,
+                    getValue: function(o) { return parseFloat(o.cdrp); },
                     unitName: 'files'
                 }
             ];
@@ -1748,21 +1770,15 @@
             topIfNoElseChart.draw(data, options);
         }
 
-        // --- Dynamic Comment Ratio Distribution Chart (5 Bins < TH, 5 Bins >= TH) ---
+        // --- Dynamic Function Comment Ratio (CDRP) Distribution Chart (5 Bins < TH, 5 Bins >= TH) ---
         function drawCommentRatioDistributionChart() {
             if (!chartsLoaded) return;
 
-            var maxCR = 0;
-            func_data.forEach(function(f) {
-                var val = parseFloat(f.ccrp);
-                if (val > maxCR) maxCR = val;
-            });
-
-            crBinsData = generateCommentRatioBins(th_ccrp, maxCR);
+            crBinsData = generateCommentRatioBins(th_cdrp);
 
             // Populate counts
             func_data.forEach(function(f) {
-                var val = parseFloat(f.ccrp);
+                var val = parseFloat(f.cdrp);
                 for (var b = 0; b < crBinsData.length; b++) {
                     var bin = crBinsData[b];
                     if (bin.isViolation) {
@@ -1803,8 +1819,8 @@
             formatGoogleChart(data, 1, false);
 
             var options = getDistributionChartOptions(
-                'Comment to Code Ratio Distribution (< ' + th_ccrp + '% Fail 🔴, ≥ ' + th_ccrp + '% Pass 🟢)',
-                'Comment Ratio Ranges (5 bins < ' + th_ccrp + '% | 5 bins ≥ ' + th_ccrp + '%)'
+                'Function Comment Density (CDRP) Distribution (< ' + th_cdrp + '% Fail 🔴, ≥ ' + th_cdrp + '% Pass 🟢)',
+                'Function CDRP Ranges (5 bins < ' + th_cdrp + '% | 5 bins ≥ ' + th_cdrp + '%)'
             );
 
             var container = document.getElementById('comment-ratio-distribution-chart');
@@ -1816,7 +1832,7 @@
                 if (sel.length > 0) {
                     var selectedBin = crBinsData[sel[0].row];
                     if (selectedBin) {
-                        setFuncChartFilter('cr_bin', 'Comment Ratio ' + selectedBin.label + (selectedBin.isViolation ? ' (Violation < ' + th_ccrp + '%)' : ' (Passed ≥ ' + th_ccrp + '%)'), selectedBin);
+                        setFuncChartFilter('cr_bin', 'Function CDRP ' + selectedBin.label + (selectedBin.isViolation ? ' (Violation < ' + th_cdrp + '%)' : ' (Passed ≥ ' + th_cdrp + '%)'), selectedBin);
                     }
                 } else {
                     clearFuncChartFilter();
@@ -1826,29 +1842,29 @@
             crChart.draw(data, options);
         }
 
-        // --- Top Lowest Comment Density Functions Chart ---
+        // --- Top Lowest Comment Density (CDRP) Functions Chart ---
         function drawTopCommentRatioFunctionsChart() {
             if (!chartsLoaded) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
-                return parseFloat(a.ccrp) - parseFloat(b.ccrp);
+                return parseFloat(a.cdrp) - parseFloat(b.cdrp);
             });
             var topN = 10;
             top10CrData = sortedFuncs.slice(0, Math.min(topN, sortedFuncs.length));
 
-            var chartData = [['Function Name', 'Comment Density (%)', { role: 'style' }, { role: 'annotation' }]];
+            var chartData = [['Function Name', 'Comment Density CDRP (%)', { role: 'style' }, { role: 'annotation' }]];
             top10CrData.forEach(function(f) {
-                var ccrp = parseFloat(f.ccrp);
-                var barColor = ccrp < th_ccrp ? COLOR_FAIL : COLOR_PASS;
-                chartData.push([f.name, ccrp, 'color: ' + barColor, formatFloat(ccrp, 2) + '%']);
+                var cdrp = parseFloat(f.cdrp);
+                var barColor = cdrp < th_cdrp ? COLOR_FAIL : COLOR_PASS;
+                chartData.push([f.name, cdrp, 'color: ' + barColor, formatFloat(cdrp, 2) + '%']);
             });
 
             var data = google.visualization.arrayToDataTable(chartData);
             formatGoogleChart(data, 1, true, '%');
 
             var options = getTopChartOptions(
-                'Top 10 Lowest Comment Density Functions (< ' + th_ccrp + '% Fail 🔴, ≥ ' + th_ccrp + '% Pass 🟢)',
-                'Comment Density (%)'
+                'Top 10 Lowest Comment Density (CDRP) Functions (< ' + th_cdrp + '% Fail 🔴, ≥ ' + th_cdrp + '% Pass 🟢)',
+                'Function Comment Density CDRP (%)'
             );
 
             var container = document.getElementById('top-comment-ratio-functions-chart');
@@ -1868,6 +1884,123 @@
             });
 
             topCrChart.draw(data, options);
+        }
+
+        // --- Dynamic File Comment Ratio (CDRP) Distribution Chart (Files) ---
+        function drawFileCommentRatioDistributionChart() {
+            if (!chartsLoaded) return;
+
+            fileCrBinsData = generateCommentRatioBins(th_file_cdrp);
+
+            obj_data.forEach(function(o) {
+                var val = parseFloat(o.cdrp);
+                for (var b = 0; b < fileCrBinsData.length; b++) {
+                    var bin = fileCrBinsData[b];
+                    if (bin.isViolation) {
+                        if (val >= bin.min && val < bin.max) {
+                            bin.count++;
+                            break;
+                        }
+                    } else {
+                        if (bin.max === Infinity) {
+                            if (val >= bin.min) {
+                                bin.count++;
+                                break;
+                            }
+                        } else {
+                            if (val >= bin.min && val < bin.max) {
+                                bin.count++;
+                                break;
+                            }
+                        }
+                    }
+                }
+            });
+
+            var data = new google.visualization.DataTable();
+            data.addColumn('string', 'Range');
+            data.addColumn('number', 'Files');
+            data.addColumn({type: 'string', role: 'style'});
+            data.addColumn({type: 'string', role: 'annotation'});
+
+            fileCrBinsData.forEach(function(bin) {
+                data.addRow([
+                    bin.label,
+                    bin.count,
+                    'color: ' + bin.color,
+                    formatInt(bin.count)
+                ]);
+            });
+            formatGoogleChart(data, 1, false);
+
+            var options = getDistributionChartOptions(
+                'File Comment Density (CDRP) Distribution (< ' + th_file_cdrp + '% Fail 🔴, ≥ ' + th_file_cdrp + '% Pass 🟢)',
+                'File CDRP Ranges (5 bins < ' + th_file_cdrp + '% | 5 bins ≥ ' + th_file_cdrp + '%)',
+                'Number of Files'
+            );
+
+            var container = document.getElementById('file-comment-ratio-distribution-chart');
+            if (!container) return;
+            fileCrChart = new google.visualization.ColumnChart(container);
+
+            google.visualization.events.addListener(fileCrChart, 'select', function() {
+                var sel = fileCrChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedBin = fileCrBinsData[sel[0].row];
+                    if (selectedBin) {
+                        setObjChartFilter('file_cr_bin', 'File CDRP ' + selectedBin.label + (selectedBin.isViolation ? ' (Violation < ' + th_file_cdrp + '%)' : ' (Passed ≥ ' + th_file_cdrp + '%)'), selectedBin);
+                    }
+                } else {
+                    clearObjChartFilter();
+                }
+            });
+
+            fileCrChart.draw(data, options);
+        }
+
+        // --- Top Lowest Comment Density (CDRP) Files Chart (Files) ---
+        function drawTopFileCommentRatioFilesChart() {
+            if (!chartsLoaded) return;
+
+            var sortedFiles = [...obj_data].sort(function(a, b) {
+                return parseFloat(a.cdrp) - parseFloat(b.cdrp);
+            });
+            var topN = 10;
+            top10FileCrData = sortedFiles.slice(0, Math.min(topN, sortedFiles.length));
+
+            var chartData = [['File Name', 'File Comment Density CDRP (%)', { role: 'style' }, { role: 'annotation' }]];
+            top10FileCrData.forEach(function(o) {
+                var cdrp = parseFloat(o.cdrp);
+                var barColor = cdrp < th_file_cdrp ? COLOR_FAIL : COLOR_PASS;
+                chartData.push([o.filename, cdrp, 'color: ' + barColor, formatFloat(cdrp, 2) + '%']);
+            });
+
+            var data = google.visualization.arrayToDataTable(chartData);
+            formatGoogleChart(data, 1, true, '%');
+
+            var options = getTopChartOptions(
+                'Top 10 Lowest Comment Density (CDRP) Files (< ' + th_file_cdrp + '% Fail 🔴, ≥ ' + th_file_cdrp + '% Pass 🟢)',
+                'File Comment Density CDRP (%)',
+                'File Name'
+            );
+
+            var container = document.getElementById('top-file-comment-ratio-files-chart');
+            if (!container) return;
+            topFileCrChart = new google.visualization.BarChart(container);
+
+            google.visualization.events.addListener(topFileCrChart, 'select', function() {
+                var sel = topFileCrChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedFile = top10FileCrData[sel[0].row];
+                    if (selectedFile) {
+                        setObjChartFilter('file_exact', 'File: ' + selectedFile.filename, selectedFile.filename);
+                    }
+                } else {
+                    clearObjChartFilter();
+                }
+            });
+
+            topFileCrChart.draw(data, options);
         }
 
         // --- Function Parameters Distribution Chart (HIS_PARAM) ---
@@ -3437,7 +3570,7 @@
                 var nloc = parseInt(func.nloc);
                 var sloc = parseInt(func.sloc) || 0;
                 var eloc = parseInt(func.eloc) || 0;
-                var ccrp = parseFloat(func.ccrp);
+                var cdrp = parseFloat(func.cdrp);
                 var pcnt = parseInt(func.pcnt) || 0;
                 var ret_cnt = parseInt(func.ret_cnt) || 0;
                 var nesting = parseInt(func.nesting) || 0;
@@ -3498,12 +3631,12 @@
                     if (cf.type === 'cr_bin') {
                         var b = cf.value;
                         if (b.isViolation) {
-                            if (ccrp < b.min || ccrp >= b.max) return false;
+                            if (cdrp < b.min || cdrp >= b.max) return false;
                         } else {
                             if (b.max === Infinity) {
-                                if (ccrp < b.min) return false;
+                                if (cdrp < b.min) return false;
                             } else {
-                                if (ccrp < b.min || ccrp >= b.max) return false;
+                                if (cdrp < b.min || cdrp >= b.max) return false;
                             }
                         }
                     }
@@ -3607,10 +3740,10 @@
                     if (cf.type === 'cc_th' && !(cc === th_cc)) return false;
                     if (cf.type === 'cc_right' && !(cc > th_cc)) return false;
                     if (cf.type === 'cr_range') {
-                        if (cf.value === '<10%' && !(ccrp < 10)) return false;
-                        if (cf.value === '10-30%' && !(ccrp >= 10 && ccrp <= 30)) return false;
-                        if (cf.value === '31-50%' && !(ccrp > 30 && ccrp <= 50)) return false;
-                        if (cf.value === '>50%' && !(ccrp > 50)) return false;
+                        if (cf.value === '<10%' && !(cdrp < 10)) return false;
+                        if (cf.value === '10-30%' && !(cdrp >= 10 && cdrp <= 30)) return false;
+                        if (cf.value === '31-50%' && !(cdrp > 30 && cdrp <= 50)) return false;
+                        if (cf.value === '>50%' && !(cdrp > 50)) return false;
                     }
                     if (cf.type === 'func_exact' && func.name !== cf.value) return false;
                 }
@@ -3620,7 +3753,7 @@
                     (has_nloc && nloc > th_nloc) ||
                     (has_sloc && sloc > th_sloc) ||
                     (has_eloc && eloc > th_eloc) ||
-                    (has_comment_ratio && ccrp < th_ccrp) ||
+                    (has_comment_ratio && cdrp < th_cdrp) ||
                     (has_param && pcnt > th_param) ||
                     (has_return && ret_cnt > th_return) ||
                     (has_nesting && nesting > th_nesting) ||
@@ -3649,8 +3782,8 @@
                     if (!(eloc > th_eloc)) return false;
                 } else if (funcState.violationFilter === 'if_no_else') {
                     if (!(if_no_else > th_if_no_else)) return false;
-                } else if (funcState.violationFilter === 'ccrp') {
-                    if (!(ccrp < th_ccrp)) return false;
+                } else if (funcState.violationFilter === 'cdrp') {
+                    if (!(cdrp < th_cdrp)) return false;
                 } else if (funcState.violationFilter === 'param') {
                     if (!(pcnt > th_param)) return false;
                 } else if (funcState.violationFilter === 'return') {
@@ -3697,7 +3830,7 @@
                 var valA = a[col];
                 var valB = b[col];
 
-                if (['sline', 'pcnt', 'token', 'nloc', 'sloc', 'eloc', 'ccnt', 'ccrp', 'cc', 'ret_cnt', 'nesting', 'stmt_cnt', 'stmt_size', 'goto_cnt', 'calls_cnt', 'calling_cnt', 'path_cnt', 'rec_cnt', 'dead_cnt', 'call_depth', 'if_no_else'].includes(col)) {
+                if (['sline', 'pcnt', 'token', 'nloc', 'sloc', 'eloc', 'ccnt', 'cdrp', 'cc', 'ret_cnt', 'nesting', 'stmt_cnt', 'stmt_size', 'goto_cnt', 'calls_cnt', 'calling_cnt', 'path_cnt', 'rec_cnt', 'dead_cnt', 'call_depth', 'if_no_else'].includes(col)) {
                     valA = parseFloat(valA) || 0;
                     valB = parseFloat(valB) || 0;
                 } else {
@@ -3743,7 +3876,7 @@
                 var nloc = parseInt(func.nloc);
                 var sloc = parseInt(func.sloc) || 0;
                 var eloc = parseInt(func.eloc) || 0;
-                var ccrp = parseFloat(func.ccrp);
+                var cdrp = parseFloat(func.cdrp);
                 var pcnt = parseInt(func.pcnt) || 0;
                 var ret_cnt = parseInt(func.ret_cnt) || 0;
                 var nesting = parseInt(func.nesting) || 0;
@@ -3762,7 +3895,7 @@
                 var nloc_class = has_nloc ? (nloc > th_nloc ? 'highlight-red' : 'highlight-green') : '';
                 var sloc_class = has_sloc ? (sloc > th_sloc ? 'highlight-red' : 'highlight-green') : '';
                 var eloc_class = has_eloc ? (eloc > th_eloc ? 'highlight-red' : 'highlight-green') : '';
-                var ccrp_class = has_comment_ratio ? (ccrp < th_ccrp ? 'highlight-red' : 'highlight-green') : '';
+                var cdrp_class = has_comment_ratio ? (cdrp < th_cdrp ? 'highlight-red' : 'highlight-green') : '';
                 var pcnt_class = has_param ? (pcnt > th_param ? 'highlight-red' : 'highlight-green') : '';
                 var ret_class = has_return ? (ret_cnt > th_return ? 'highlight-red' : 'highlight-green') : '';
                 var nest_class = has_nesting ? (nesting > th_nesting ? 'highlight-red' : 'highlight-green') : '';
@@ -3782,7 +3915,7 @@
                     (has_nloc && nloc > th_nloc) ||
                     (has_sloc && sloc > th_sloc) ||
                     (has_eloc && eloc > th_eloc) ||
-                    (has_comment_ratio && ccrp < th_ccrp) ||
+                    (has_comment_ratio && cdrp < th_cdrp) ||
                     (has_param && pcnt > th_param) ||
                     (has_return && ret_cnt > th_return) ||
                     (has_nesting && nesting > th_nesting) ||
@@ -3830,7 +3963,7 @@
                                 "<td class='" + sloc_class + "'>" + formatInt(sloc) + "</td>" +
                                 "<td class='" + eloc_class + "'>" + formatInt(eloc) + "</td>" +
                                 "<td>" + formatInt(func.ccnt) + "</td>" +
-                                "<td class='" + ccrp_class + "'>" + formatFloat(ccrp, 2) + "%</td>" +
+                                "<td class='" + cdrp_class + "'>" + formatFloat(cdrp, 2) + "%</td>" +
                                 "<td class='" + cc_class + "'>" + formatInt(func.cc) + "</td>" +
                             "</tr>";
             });
@@ -3904,7 +4037,7 @@
             updateObjFilterBanner();
             var filtered = objState.allData.filter(function(obj) {
                 var nloc = parseInt(obj.nloc);
-                var ccrp = parseFloat(obj.ccrp);
+                var cdrp = parseFloat(obj.cdrp);
                 var line_cnt = parseInt(obj.line_cnt) || nloc;
                 var static_decls = parseInt(obj.static_decls) || 0;
                 var unreachable = parseInt(obj.unreachable_stmts) || 0;
@@ -3929,11 +4062,23 @@
                             if (line_cnt < b.min || line_cnt > b.max) return false;
                         }
                     }
+                    if (cf.type === 'file_cr_bin') {
+                        var b = cf.value;
+                        if (b.isViolation) {
+                            if (cdrp < b.min || cdrp >= b.max) return false;
+                        } else {
+                            if (b.max === Infinity) {
+                                if (cdrp < b.min) return false;
+                            } else {
+                                if (cdrp < b.min || cdrp >= b.max) return false;
+                            }
+                        }
+                    }
                 }
 
                 var isObjViol = (
                     (has_nloc && nloc > th_nloc) ||
-                    (has_comment_ratio && ccrp < th_ccrp) ||
+                    (has_file_comment_ratio && cdrp < th_file_cdrp) ||
                     (has_file_lines && line_cnt > th_file_lines) ||
                     (has_static_decls && static_decls > th_static_decls)
                 );
@@ -3942,8 +4087,8 @@
                     if (!isObjViol) return false;
                 } else if (objState.violationFilter === 'nloc') {
                     if (!(nloc > th_nloc)) return false;
-                } else if (objState.violationFilter === 'ccrp') {
-                    if (!(ccrp < th_ccrp)) return false;
+                } else if (objState.violationFilter === 'cdrp') {
+                    if (!(cdrp < th_file_cdrp)) return false;
                 } else if (objState.violationFilter === 'line_cnt') {
                     if (!(line_cnt > th_file_lines)) return false;
                 } else if (objState.violationFilter === 'static_decls') {
@@ -3965,7 +4110,7 @@
                 var valA = a[col];
                 var valB = b[col];
 
-                if (['nloc', 'anloc', 'sloc', 'asloc', 'eloc', 'aeloc', 'ccn', 'accn', 'tok', 'atok', 'ccnt', 'ccrp', 'line_cnt', 'static_decls', 'unreachable_stmts'].includes(col)) {
+                if (['nloc', 'anloc', 'sloc', 'asloc', 'eloc', 'aeloc', 'ccn', 'accn', 'tok', 'atok', 'ccnt', 'cdrp', 'line_cnt', 'static_decls', 'unreachable_stmts'].includes(col)) {
                     valA = parseFloat(valA) || 0;
                     valB = parseFloat(valB) || 0;
                 } else {
@@ -4010,17 +4155,17 @@
             pageData.forEach(function(obj) {
                 count++;
                 var nloc = parseInt(obj.nloc);
-                var ccrp = parseFloat(obj.ccrp);
+                var cdrp = parseFloat(obj.cdrp);
                 var line_cnt = parseInt(obj.line_cnt) || nloc;
                 var static_decls = parseInt(obj.static_decls) || 0;
                 var unreachable = parseInt(obj.unreachable_stmts) || 0;
                 var obj_nloc_class = has_nloc ? (nloc > th_nloc ? 'highlight-red' : 'highlight-green') : '';
-                var obj_ccrp_class = has_comment_ratio ? (ccrp < th_ccrp ? 'highlight-red' : 'highlight-green') : '';
+                var obj_cdrp_class = has_file_comment_ratio ? (cdrp < th_file_cdrp ? 'highlight-red' : 'highlight-green') : '';
                 var line_class = has_file_lines ? (line_cnt > th_file_lines ? 'highlight-red' : 'highlight-green') : '';
                 var static_class = has_static_decls ? (static_decls > th_static_decls ? 'highlight-red' : 'highlight-green') : '';
                 var isViolation = (
                     (has_nloc && nloc > th_nloc) ||
-                    (has_comment_ratio && ccrp < th_ccrp) ||
+                    (has_file_comment_ratio && cdrp < th_file_cdrp) ||
                     (has_file_lines && line_cnt > th_file_lines) ||
                     (has_static_decls && static_decls > th_static_decls)
                 );
@@ -4049,7 +4194,7 @@
                                 "<td>" + formatInt(obj.tok) + "</td>" +
                                 "<td>" + formatFloat(obj.atok, 2) + "</td>" +
                                 "<td>" + formatInt(obj.ccnt) + "</td>" +
-                                "<td class='" + obj_ccrp_class + "'>" + formatFloat(ccrp, 2) + "%</td>" +
+                                "<td class='" + obj_cdrp_class + "'>" + formatFloat(cdrp, 2) + "%</td>" +
                             "</tr>";
             });
 
@@ -4208,14 +4353,14 @@
         // --- CSV Exporters ---
         function exportFuncCsv() {
             var rows = [
-                ['Status', 'Start Line', 'Function Name', 'Function Name with Params', 'Params', 'Returns', 'Nesting Depth', 'STMT', 'VOCF', 'GOTO', 'Calls', 'Calling', 'Paths', 'Recursions', 'Dead Code', 'Call Depth', 'If without Else', 'Tokens', 'NLOC', 'SLOC', 'ELOC', 'Comment Lines', 'Comment Ratio (%)', 'Cyclomatic Complexity']
+                ['Status', 'Start Line', 'Function Name', 'Function Name with Params', 'Params', 'Returns', 'Nesting Depth', 'STMT', 'VOCF', 'GOTO', 'Calls', 'Calling', 'Paths', 'Recursions', 'Dead Code', 'Call Depth', 'If without Else', 'Tokens', 'NLOC', 'SLOC', 'ELOC', 'Comment Lines', 'CDRP (%)', 'Cyclomatic Complexity']
             ];
             funcState.filteredData.forEach(function(f) {
                 var cc = parseInt(f.cc);
                 var nloc = parseInt(f.nloc);
                 var sloc = parseInt(f.sloc) || 0;
                 var eloc = parseInt(f.eloc) || 0;
-                var ccrp = parseFloat(f.ccrp);
+                var cdrp = parseFloat(f.cdrp);
                 var pcnt = parseInt(f.pcnt) || 0;
                 var ret_cnt = parseInt(f.ret_cnt) || 0;
                 var nesting = parseInt(f.nesting) || 0;
@@ -4234,7 +4379,7 @@
                     (has_nloc && nloc > th_nloc) ||
                     (has_sloc && sloc > th_sloc) ||
                     (has_eloc && eloc > th_eloc) ||
-                    (has_comment_ratio && ccrp < th_ccrp) ||
+                    (has_comment_ratio && cdrp < th_cdrp) ||
                     (has_param && pcnt > th_param) ||
                     (has_return && ret_cnt > th_return) ||
                     (has_nesting && nesting > th_nesting) ||
@@ -4272,7 +4417,7 @@
                     f.sloc || 0,
                     f.eloc || 0,
                     f.ccnt,
-                    ccrp.toFixed(2),
+                    cdrp.toFixed(2),
                     f.cc
                 ]);
             });
@@ -4281,17 +4426,17 @@
 
         function exportObjCsv() {
             var rows = [
-                ['Status', 'File Name', 'Total Lines', 'Static Declarations', 'Unreachable Statements', 'NLOC', 'Avg NLOC', 'SLOC', 'Avg SLOC', 'ELOC', 'Avg ELOC', 'Cyclomatic Complexity', 'Avg CCN', 'Token Count', 'Avg Token', 'Comment Lines', 'Comment Ratio (%)']
+                ['Status', 'File Name', 'Total Lines', 'Static Declarations', 'Unreachable Statements', 'NLOC', 'Avg NLOC', 'SLOC', 'Avg SLOC', 'ELOC', 'Avg ELOC', 'Cyclomatic Complexity', 'Avg CCN', 'Token Count', 'Avg Token', 'Comment Lines', 'CDRP (%)']
             ];
             objState.filteredData.forEach(function(o) {
                 var nloc = parseInt(o.nloc);
-                var ccrp = parseFloat(o.ccrp);
+                var cdrp = parseFloat(o.cdrp);
                 var line_cnt = parseInt(o.line_cnt) || nloc;
                 var static_decls = parseInt(o.static_decls) || 0;
                 var unreachable = parseInt(o.unreachable_stmts) || 0;
                 var status = (
                     (has_nloc && nloc > th_nloc) ||
-                    (has_comment_ratio && ccrp < th_ccrp) ||
+                    (has_file_comment_ratio && cdrp < th_file_cdrp) ||
                     (has_file_lines && line_cnt > th_file_lines) ||
                     (has_static_decls && static_decls > th_static_decls)
                 ) ? 'FAIL' : 'PASS';
@@ -4312,7 +4457,7 @@
                     parseInt(o.tok, 10) || 0,
                     parseFloat(o.atok).toFixed(2),
                     o.ccnt,
-                    ccrp.toFixed(2)
+                    cdrp.toFixed(2)
                 ]);
             });
             downloadCsv(rows, 'code_metrics_files.csv');
@@ -5268,8 +5413,8 @@
                 <h4>Avg. Cyclomatic Complexity</h4>
                 <p id="avg-complexity">0.00</p>
             </div>
-            <div class="metric-card" onclick="scrollToChart('comment-ratio-distribution-chart', 'obj_tbl_start')" style="cursor:pointer;" title="Click to view Comment Ratio">
-                <h4>Overall Comment Ratio</h4>
+            <div class="metric-card" onclick="scrollToChart(has_file_comment_ratio ? 'file-comment-ratio-distribution-chart' : 'comment-ratio-distribution-chart', 'obj_tbl_start')" style="cursor:pointer;" title="Click to view Comment Density (CDRP)">
+                <h4>Overall Comment Ratio (CDRP)</h4>
                 <p id="overall-comment-ratio">0.00%</p>
             </div>
             <div class="metric-card" onclick="scrollToChart('nloc-distribution-chart', 'obj_tbl_start')" style="cursor:pointer;" title="Click to view Lines of Code">
@@ -5457,7 +5602,7 @@
                 {% endif %}
 
                 <!-- General Code Sizing & Documentation -->
-                {% if (HAS_NLOC is defined and HAS_NLOC) or (HAS_SLOC is defined and HAS_SLOC) or (HAS_ELOC is defined and HAS_ELOC) or (HAS_FILE_LINES is defined and HAS_FILE_LINES) or (HAS_COMMENT_RATIO is defined and HAS_COMMENT_RATIO) %}
+                {% if (HAS_NLOC is defined and HAS_NLOC) or (HAS_SLOC is defined and HAS_SLOC) or (HAS_ELOC is defined and HAS_ELOC) or (HAS_FILE_LINES is defined and HAS_FILE_LINES) or (HAS_COMMENT_RATIO is defined and HAS_COMMENT_RATIO) or (HAS_FILE_COMMENT_RATIO is defined and HAS_FILE_COMMENT_RATIO) %}
                 <tr style="background-color: #f8f9fa;"><td colspan="4" style="font-weight: 700; color: #1a252f; border-bottom: 2px solid #ced4da;">General Code Sizing & Documentation</td></tr>
                 {% endif %}
                 {% if HAS_NLOC is defined and HAS_NLOC %}
@@ -5501,11 +5646,21 @@
                 {% if HAS_COMMENT_RATIO is defined and HAS_COMMENT_RATIO %}
                 <tr>
                     <td>
-                        <a href="#comment-ratio-distribution-chart" class="metric-param-link" onclick="scrollToChart('comment-ratio-distribution-chart', 'obj_tbl_start'); return false;" title="Click to view Comment Ratio Distribution chart">📊 Minimum Comment Ratio (CCRP)</a>
+                        <a href="#comment-ratio-distribution-chart" class="metric-param-link" onclick="scrollToChart('comment-ratio-distribution-chart', 'func_tbl_start'); return false;" title="Click to view Function Comment Density (CDRP) Distribution chart">📊 Minimum Function Comment Ratio (CDRP)</a>
                     </td>
                     <td><strong>&ge; {{COMMENT_RATIO}}%</strong></td>
-                    <td>Source code documentation ratio must meet or exceed {{COMMENT_RATIO}}% to ensure maintainability</td>
-                    <td class="range-bar-cell" id="range-bar-ccrp"></td>
+                    <td>Function documentation density (including preceding header/Doxygen comments and inline comments) must meet or exceed {{COMMENT_RATIO}}%</td>
+                    <td class="range-bar-cell" id="range-bar-cdrp"></td>
+                </tr>
+                {% endif %}
+                {% if HAS_FILE_COMMENT_RATIO is defined and HAS_FILE_COMMENT_RATIO %}
+                <tr>
+                    <td>
+                        <a href="#file-comment-ratio-distribution-chart" class="metric-param-link" onclick="scrollToChart('file-comment-ratio-distribution-chart', 'obj_tbl_start'); return false;" title="Click to view File Comment Density (CDRP) Distribution chart">📊 Minimum File Comment Ratio (CDRP)</a>
+                    </td>
+                    <td><strong>&ge; {{FILE_COMMENT_RATIO}}%</strong></td>
+                    <td>Source file documentation density across the translation unit must meet or exceed {{FILE_COMMENT_RATIO}}% to ensure maintainability</td>
+                    <td class="range-bar-cell" id="range-bar-file_cdrp"></td>
                 </tr>
                 {% endif %}
             </tbody>
@@ -5990,25 +6145,50 @@
 
         {% if HAS_COMMENT_RATIO is defined and HAS_COMMENT_RATIO %}
         <div class="dashboard-section">
-            <div class="chart-container" title="SWE.4 Quality Gate Rule: Source code documentation ratio must meet or exceed {{COMMENT_RATIO}}% to ensure maintainability">
-                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: Source code documentation ratio must meet or exceed {{COMMENT_RATIO}}% to ensure maintainability">
+            <div class="chart-container" title="SWE.4 Quality Gate Rule: Function documentation density (CDRP) must meet or exceed {{COMMENT_RATIO}}% (including preceding header comments and inline comments)">
+                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: Function documentation density (CDRP) must meet or exceed {{COMMENT_RATIO}}% (including preceding header comments and inline comments)">
                     <span>🛡️ SWE.4 Rule</span>
                     <div class="tooltip-box">
                         <strong>SWE.4 Quality Gate Rule</strong>
-                        Source code documentation ratio must meet or exceed {{COMMENT_RATIO}}% to ensure maintainability
+                        Function documentation density (CDRP) must meet or exceed {{COMMENT_RATIO}}% (including preceding header comments and inline comments)
                     </div>
                 </div>
                 <div id="comment-ratio-distribution-chart" style="width:100%; height:100%;"></div>
             </div>
-            <div class="chart-container" title="SWE.4 Quality Gate Rule: Source code documentation ratio must meet or exceed {{COMMENT_RATIO}}% to ensure maintainability">
-                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: Source code documentation ratio must meet or exceed {{COMMENT_RATIO}}% to ensure maintainability">
+            <div class="chart-container" title="SWE.4 Quality Gate Rule: Function documentation density (CDRP) must meet or exceed {{COMMENT_RATIO}}% (including preceding header comments and inline comments)">
+                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: Function documentation density (CDRP) must meet or exceed {{COMMENT_RATIO}}% (including preceding header comments and inline comments)">
                     <span>🛡️ SWE.4 Rule</span>
                     <div class="tooltip-box">
                         <strong>SWE.4 Quality Gate Rule</strong>
-                        Source code documentation ratio must meet or exceed {{COMMENT_RATIO}}% to ensure maintainability
+                        Function documentation density (CDRP) must meet or exceed {{COMMENT_RATIO}}% (including preceding header comments and inline comments)
                     </div>
                 </div>
                 <div id="top-comment-ratio-functions-chart" style="width:100%; height:100%;"></div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if HAS_FILE_COMMENT_RATIO is defined and HAS_FILE_COMMENT_RATIO %}
+        <div class="dashboard-section">
+            <div class="chart-container" title="SWE.4 Quality Gate Rule: Source file documentation density (CDRP) across the translation unit must meet or exceed {{FILE_COMMENT_RATIO}}% to ensure maintainability">
+                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: Source file documentation density (CDRP) across the translation unit must meet or exceed {{FILE_COMMENT_RATIO}}% to ensure maintainability">
+                    <span>🛡️ SWE.4 Rule</span>
+                    <div class="tooltip-box">
+                        <strong>SWE.4 Quality Gate Rule</strong>
+                        Source file documentation density (CDRP) across the translation unit must meet or exceed {{FILE_COMMENT_RATIO}}% to ensure maintainability
+                    </div>
+                </div>
+                <div id="file-comment-ratio-distribution-chart" style="width:100%; height:100%;"></div>
+            </div>
+            <div class="chart-container" title="SWE.4 Quality Gate Rule: Source file documentation density (CDRP) across the translation unit must meet or exceed {{FILE_COMMENT_RATIO}}% to ensure maintainability">
+                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: Source file documentation density (CDRP) across the translation unit must meet or exceed {{FILE_COMMENT_RATIO}}% to ensure maintainability">
+                    <span>🛡️ SWE.4 Rule</span>
+                    <div class="tooltip-box">
+                        <strong>SWE.4 Quality Gate Rule</strong>
+                        Source file documentation density (CDRP) across the translation unit must meet or exceed {{FILE_COMMENT_RATIO}}% to ensure maintainability
+                    </div>
+                </div>
+                <div id="top-file-comment-ratio-files-chart" style="width:100%; height:100%;"></div>
             </div>
         </div>
         {% endif %}
@@ -6078,7 +6258,7 @@
                     <button class="btn-filter" data-filter="if_no_else" title="Show If without Else > {{TH_IF_NO_ELSE}}">🔴 No Else &gt; {{TH_IF_NO_ELSE}}</button>
                     {% endif %}
                     {% if HAS_COMMENT_RATIO is defined and HAS_COMMENT_RATIO %}
-                    <button class="btn-filter" data-filter="ccrp" title="Show Comment Ratio < {{COMMENT_RATIO}}%">🔴 Ratio &lt; {{COMMENT_RATIO}}%</button>
+                    <button class="btn-filter" data-filter="cdrp" title="Show Function CDRP < {{COMMENT_RATIO}}%">🔴 CDRP &lt; {{COMMENT_RATIO}}%</button>
                     {% endif %}
                     <button class="btn-filter" data-filter="passed">🟢 All Passed</button>
                 </div>
@@ -6127,7 +6307,7 @@
                         <th data-sort="sloc" style="width: 60px;" title="Logical Source Lines of Code">SLOC</th>
                         <th data-sort="eloc" style="width: 60px;" title="Executable Lines of Code">ELOC</th>
                         <th data-sort="ccnt" style="width: 60px;">Comments</th>
-                        <th data-sort="ccrp" style="width: 70px;">Ratio (%)</th>
+                        <th data-sort="cdrp" style="width: 75px;" title="Function Comment Density Ratio including preceding header comments (HIS_CDRP)">CDRP (%)</th>
                         <th data-sort="cc" style="width: 55px;">Complexity</th>
                     </tr>
                 </thead>
@@ -6163,8 +6343,8 @@
                     {% if HAS_NLOC is defined and HAS_NLOC %}
                     <button class="btn-filter" data-filter="nloc" title="Show NLOC > {{TH_NLOC}}">🔴 NLOC &gt; {{TH_NLOC}}</button>
                     {% endif %}
-                    {% if HAS_COMMENT_RATIO is defined and HAS_COMMENT_RATIO %}
-                    <button class="btn-filter" data-filter="ccrp" title="Show Comment Ratio < {{COMMENT_RATIO}}%">🔴 Ratio &lt; {{COMMENT_RATIO}}%</button>
+                    {% if HAS_FILE_COMMENT_RATIO is defined and HAS_FILE_COMMENT_RATIO %}
+                    <button class="btn-filter" data-filter="cdrp" title="Show File CDRP < {{FILE_COMMENT_RATIO}}%">🔴 CDRP &lt; {{FILE_COMMENT_RATIO}}%</button>
                     {% endif %}
                     <button class="btn-filter" data-filter="passed">🟢 All Passed</button>
                 </div>
@@ -6208,7 +6388,7 @@
                         <th data-sort="tok" style="width: 75px;">Tokens</th>
                         <th data-sort="atok" style="width: 85px;">Avg Tokens</th>
                         <th data-sort="ccnt" style="width: 85px;">Comments</th>
-                        <th data-sort="ccrp" style="width: 95px;">Ratio (%)</th>
+                        <th data-sort="cdrp" style="width: 95px;" title="File Comment Density Ratio across translation unit (HIS_CDRP)">CDRP (%)</th>
                     </tr>
                 </thead>
                 <tbody id="object_data_body"></tbody>

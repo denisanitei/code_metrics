@@ -80,6 +80,7 @@ class FunctionInfo(object):
         self.start_line               = start_line
         self.parameter_count          = 0
         self.comment_count            = 0
+        self.cdrp                     = 0.0
         self.return_count             = 0
         self.max_nesting_depth        = 0
         self.statement_count          = 0
@@ -124,8 +125,15 @@ class FunctionInfo(object):
     def add_eloc(self):
         self.eloc += 1
 
-    def add_comment(self):
-        self.comment_count += 1
+    def add_comment(self, count=1):
+        self.comment_count += count
+
+    def update_cdrp(self):
+        _denom = self.nloc + self.comment_count
+        if _denom > 0:
+            self.cdrp = round((float(self.comment_count) / float(_denom)) * 100.0, 2)
+        else:
+            self.cdrp = 0.0
 
     def add_return(self):
         self.return_count += 1
@@ -169,6 +177,7 @@ class FunctionInfo(object):
             self.average_statement_size = round(float(self.token_count) / float(self.statement_count), 2)
         else:
             self.average_statement_size = float(self.token_count)
+        self.update_cdrp()
 
     def update_nesting_depth(self, depth):
         if depth > self.max_nesting_depth:
@@ -240,7 +249,8 @@ class FileInformation(list):
             pass
 
         self.com_cnt = _comment_count
-        self.ccrp    = (_comment_count / (NLOC + _comment_count)) * 100 if (NLOC + _comment_count) != 0 else 0
+        self.cdrp    = (_comment_count / (NLOC + _comment_count)) * 100 if (NLOC + _comment_count) != 0 else 0
+        self.ccrp    = self.cdrp
         self.CCN     = _ccn
         self.token   = _token
         self.sloc    = _sloc
@@ -1550,6 +1560,35 @@ def compute_his_stmt(func_tokens):
     return _total if _total >= 0 else 0
 
 
+def _count_non_empty_comment_lines(text):
+    _cnt = 0
+    for _line in text.split('\n'):
+        _cleaned = _line.replace('*', '').replace('/', '').replace(' ', '').replace('\t', '').replace('\r', '')
+        if len(_cleaned) > 0:
+            _cnt += 1
+        else:
+            # empty comment delimiter line
+            pass
+    return _cnt
+
+
+def _is_file_doc_comment(text, at_top_of_file=False):
+    _lower = text.lower()
+    if '@file' in _lower or '\\file' in _lower:
+        return True
+    if at_top_of_file and 'copyright' in _lower:
+        return True
+    return False
+
+
+def _is_doxygen_func_comment(text):
+    _stripped = text.lstrip()
+    if _stripped.startswith('/**') or _stripped.startswith('/*!') or _stripped.startswith('///') or _stripped.startswith('//!'):
+        if not _is_file_doc_comment(_stripped, False):
+            return True
+    return False
+
+
 """*************************************************************************************************
 ****************************************************************************************************
 *************************************************************************************************"""
@@ -1588,15 +1627,91 @@ class UniversalAnalyzer(list):
         self.jump_active            = False
         self.func_body_tokens       = []
         self.in_pp_line             = False
+        self.in_function_body       = False
+        self.in_decl_prefix         = False
+        self.pending_comment_lines  = 0
+        self.pending_comment_end    = -1
+        self.pending_is_doxygen     = False
+        self.sig_comment_lines      = 0
+        self.last_finished_function = None
+        self.last_func_end_line     = -1
+        self.last_global_term_line  = -1
+        self.at_top_of_file         = True
 
     def analyze(self, parsed_code, filename):
         fileInfo = FileInformation(filename)
         for fun in self._functions(parsed_code):
             fileInfo.append(fun)
+        if self.in_function_body and self.current_function is not None:
+            self.comment_count += self.current_function.comment_count
+            self.in_function_body = False
+        self.FLUSH_PENDING_COMMENTS(None)
         fileInfo.summarize(self.nloc, self.comment_count)
         return fileInfo
 
+    def _check_decl_prefix_start(self, line):
+        self.at_top_of_file = False
+        if not self.in_decl_prefix:
+            if self.pending_comment_lines > 0:
+                _gap = line - self.pending_comment_end - 1
+                if _gap <= 0 or (_gap == 1 and self.pending_is_doxygen):
+                    # keep pending header comment for candidate function
+                    pass
+                else:
+                    self.comment_count += self.pending_comment_lines
+                    self.pending_comment_lines = 0
+                    self.pending_comment_end   = -1
+                    self.pending_is_doxygen    = False
+            self.in_decl_prefix = True
+        else:
+            # already inside declaration prefix
+            pass
+
+    def BEGIN_DECL_PREFIX(self, line):
+        self._check_decl_prefix_start(line)
+
+    def FLUSH_PENDING_COMMENTS(self, _unused=None):
+        if self.pending_comment_lines > 0 or self.sig_comment_lines > 0:
+            self.comment_count += self.pending_comment_lines + self.sig_comment_lines
+            self.pending_comment_lines = 0
+            self.sig_comment_lines     = 0
+            self.pending_comment_end   = -1
+            self.pending_is_doxygen    = False
+        self.in_decl_prefix = False
+
+    def FLUSH_GLOBAL_TERM(self, line):
+        self.at_top_of_file = False
+        self.FLUSH_PENDING_COMMENTS(None)
+        if line is not None:
+            self.last_global_term_line = line
+
+    def GLOBAL_PP_DIRECTIVE(self, line):
+        self.at_top_of_file = False
+        if not self.in_decl_prefix and self.pending_comment_lines > 0 and line is not None:
+            if line <= self.pending_comment_end + 1:
+                self.pending_comment_end = line
+
+    def FILE_COMMENT(self, text):
+        self.comment_count += _count_non_empty_comment_lines(text)
+
+    def ENTER_FUNCTION_BODY(self, _unused=None):
+        self.at_top_of_file   = False
+        self.in_function_body = True
+        self.in_decl_prefix   = False
+        _header_comments      = self.pending_comment_lines + self.sig_comment_lines
+        self.pending_comment_lines = 0
+        self.sig_comment_lines     = 0
+        self.pending_comment_end   = -1
+        self.pending_is_doxygen    = False
+        if self.current_function is not None and _header_comments > 0:
+            self.current_function.add_comment(_header_comments)
+
+    def RESET_AND_START_NEW_FUNCTION(self, name_and_line):
+        self.FLUSH_PENDING_COMMENTS(None)
+        self.START_NEW_FUNCTION(name_and_line)
+
     def START_NEW_FUNCTION(self, name_and_line):
+        self._check_decl_prefix_start(name_and_line[1])
         self.current_function       = FunctionInfo(*name_and_line)
         self.nesting_depth          = 0
         self.prev_token             = None
@@ -1843,18 +1958,46 @@ class UniversalAnalyzer(list):
         self.prev_token = text
         self.current_function.add_token()
 
-    def COMMENT(self, text):
-        lines = text.split('\n')
-        for line in lines:
-            _line = line.replace('*', '').replace('/', '').replace(' ', '').replace('\t', '')
-            if len(_line):
+    def COMMENT(self, payload):
+        if isinstance(payload, tuple):
+            _text, _start_line, _end_line = payload
+        else:
+            _text       = payload
+            _start_line = -1
+            _end_line   = -1
+
+        _cnt = _count_non_empty_comment_lines(_text)
+        if self.in_function_body and self.current_function is not None:
+            if _cnt > 0:
+                self.current_function.add_comment(_cnt)
+        elif _start_line < 0:
+            if _cnt > 0:
                 if self.current_function is not None:
-                    self.current_function.add_comment()
+                    self.current_function.add_comment(_cnt)
                 else:
-                    self.comment_count += 1
+                    self.comment_count += _cnt
+        elif self.last_finished_function is not None and _start_line == self.last_func_end_line:
+            if _cnt > 0:
+                self.last_finished_function.add_comment(_cnt)
+                self.last_finished_function.update_cdrp()
+        elif not self.in_decl_prefix and _start_line == self.last_global_term_line:
+            self.comment_count += _cnt
+        elif self.in_decl_prefix:
+            self.sig_comment_lines += _cnt
+        else:
+            if _is_file_doc_comment(_text, self.at_top_of_file):
+                self.FLUSH_PENDING_COMMENTS(None)
+                self.comment_count += _cnt
             else:
-                # empty comment line
-                pass
+                self.at_top_of_file = False
+                if self.pending_comment_lines > 0 and _start_line > self.pending_comment_end + 1:
+                    self.comment_count += self.pending_comment_lines
+                    self.pending_comment_lines = 0
+                    self.pending_is_doxygen    = False
+                self.pending_comment_lines += _cnt
+                self.pending_comment_end    = _end_line
+                if _is_doxygen_func_comment(_text):
+                    self.pending_is_doxygen = True
 
     def NEW_LINE(self, token):
         self.nloc += 1
@@ -1876,40 +2019,52 @@ class UniversalAnalyzer(list):
     def _functions(self, parsed_code):
         for code, text in parsed_code:
             if code is UniversalAnalyzer.END_OF_FUNCTION:
-                if self.current_function is not None:
+                _finished_fun         = self.current_function
+                self.in_function_body = False
+                self.in_decl_prefix   = False
+                if _finished_fun is not None:
                     if self.expecting_else_for is not None:
-                        self.current_function.add_if_without_else()
+                        _finished_fun.add_if_without_else()
                         self.expecting_else_for = None
                     else:
                         # no pending if check
                         pass
                     while len(self.if_stack) > 0:
                         self.if_stack.pop()
-                        self.current_function.add_if_without_else()
+                        _finished_fun.add_if_without_else()
                     for _vname, _vcnt in self.func_declared_vars.items():
                         if _vcnt <= 1:
-                            self.current_function.add_unused_variable()
+                            _finished_fun.add_unused_variable()
                         else:
                             # variable referenced in function body
                             pass
-                    self.current_function.set_path_count(compute_his_path(self.func_body_tokens))
-                    self.current_function.set_statement_count(compute_his_stmt(self.func_body_tokens))
-                    self.current_function.finalize_metrics()
+                    _finished_fun.set_path_count(compute_his_path(self.func_body_tokens))
+                    _finished_fun.set_statement_count(compute_his_stmt(self.func_body_tokens))
+                    _finished_fun.finalize_metrics()
+                    self.last_finished_function = _finished_fun
+                    self.last_func_end_line     = text if isinstance(text, int) else -1
                 else:
                     # no function object
                     pass
-                yield self.current_function
+                self.current_function = None
+                yield _finished_fun
             else:
                 code(self, text)
 
 class TokenTranslatorBase:
 
     def __init__(self):
-        self._state = self._GLOBAL
-        self._current_line = 0
+        self._state             = self._GLOBAL
+        self._current_line      = 0
+        self._in_global_pp_line = False
 
     def get_current_line(self):
         return self._current_line
+
+    def _make_comment(self, token):
+        _end_line   = self._current_line
+        _start_line = _end_line - token.count('\n')
+        return (UniversalAnalyzer.COMMENT, (token, _start_line, _end_line))
 
     def getFunctions(self, tokens):
         for token, self._current_line in tokens:
@@ -1918,8 +2073,26 @@ class TokenTranslatorBase:
 
     def _read_token(self, token):
         if token.isspace():
+            self._in_global_pp_line = False
             return UniversalAnalyzer.NEW_LINE, None
+        elif getattr(self, '_IMP', None) is not None and self._state != self._IMP:
+            if token == '#define' or token in ('#include', '#undef', '#error', '#warning', '#line', '#import'):
+                self._in_global_pp_line = True
+                self._state = self._GLOBAL
+                return UniversalAnalyzer.FLUSH_GLOBAL_TERM, self._current_line
+            elif token.startswith('#'):
+                self._in_global_pp_line = True
+                return UniversalAnalyzer.GLOBAL_PP_DIRECTIVE, self._current_line
+            elif self._in_global_pp_line:
+                if token.startswith('/*') or token.startswith('//'):
+                    return UniversalAnalyzer.FILE_COMMENT, token
+                else:
+                    return None
+            else:
+                return self._state(token)
         else:
+            if token == '#define':
+                return None
             return self._state(token)
     def remove_hash_if(self):
         self.conditions.discard("#if")
@@ -1935,6 +2108,7 @@ class CTokenTranslator(TokenTranslatorBase):
         self.br_count              = 0
         self.last_preprocessor     = None
         self._macro_bracket_level  = 0
+        self._dec_end_line         = -1
 
     def _is_condition(self, token):
         _matched = token in self.conditions
@@ -1955,14 +2129,19 @@ class CTokenTranslator(TokenTranslatorBase):
         _result = None
         if self._is_func_macro(token):
             self._state = self._FUNC_MACRO_WAIT_OPEN
+            _result = (UniversalAnalyzer.BEGIN_DECL_PREFIX, self._current_line)
         elif token == '(':
+            if self.bracket_level == 0:
+                pass
             self.bracket_level += 1
             self._state = self._DEC
             _result = (UniversalAnalyzer.ADD_TO_LONG_FUNCTION_NAME, token)
         elif token == '::':
             self._state = self._NAMESPACE
         elif token.startswith('/*') or token.startswith('//'):
-            _result = (UniversalAnalyzer.COMMENT, token)
+            _result = self._make_comment(token)
+        elif token in (';', '=', '{', '}', ':'):
+            _result = (UniversalAnalyzer.FLUSH_GLOBAL_TERM, self._current_line)
         else:
             if token == 'operator':
                 self._state = self._OPERATOR
@@ -1978,7 +2157,7 @@ class CTokenTranslator(TokenTranslatorBase):
             self._macro_bracket_level = 1
             self._state = self._FUNC_MACRO_ARGS
         elif token.startswith('/*') or token.startswith('//'):
-            _result = (UniversalAnalyzer.COMMENT, token)
+            _result = self._make_comment(token)
         elif token.isspace():
             # whitespace ignored while waiting for macro opening bracket
             pass
@@ -2000,20 +2179,22 @@ class CTokenTranslator(TokenTranslatorBase):
                 # still nested inside macro brackets
                 pass
         elif token.startswith('/*') or token.startswith('//'):
-            _result = (UniversalAnalyzer.COMMENT, token)
+            _result = self._make_comment(token)
         else:
             # argument token within macro definition
             pass
         return _result
 
     def _OPERATOR(self, token):
+        if token.startswith('/*') or token.startswith('//'):
+            return self._make_comment(token)
         if token != '(':
             self._state = self._GLOBAL
-        elif token.startswith('/*') or token.startswith('//'):
-            return UniversalAnalyzer.COMMENT, token
         return UniversalAnalyzer.ADD_TO_FUNCTION_NAME, ' ' + token
 
     def _NAMESPACE(self, token):
+        if token.startswith('/*') or token.startswith('//'):
+            return self._make_comment(token)
         self._state = self._OPERATOR if token == 'operator'  else self._GLOBAL
         return UniversalAnalyzer.ADD_TO_FUNCTION_NAME, "::" + token
 
@@ -2023,23 +2204,32 @@ class CTokenTranslator(TokenTranslatorBase):
         elif token in (')', ">"):
             self.bracket_level -= 1
             if (self.bracket_level == 0):
-                self._state = self._DEC_TO_IMP
+                self._state        = self._DEC_TO_IMP
+                self._dec_end_line = self._current_line
+        elif token.startswith('/*') or token.startswith('//'):
+            return self._make_comment(token)
         elif self.bracket_level == 1:
             return UniversalAnalyzer.PARAMETER, token
-        elif token.startswith('/*') or token.startswith('//'):
-            return UniversalAnalyzer.COMMENT, token
         return UniversalAnalyzer.ADD_TO_LONG_FUNCTION_NAME, " " + token
 
     def _DEC_TO_IMP(self, token):
-        if token == 'const':
+        if token in ('const', 'noexcept', 'override', 'final', 'volatile'):
             return UniversalAnalyzer.ADD_TO_LONG_FUNCTION_NAME, " " + token
         elif token == '{':
             self.br_count += 1
             self._state = self._IMP
+            return UniversalAnalyzer.ENTER_FUNCTION_BODY, None
         elif token.startswith('/*') or token.startswith('//'):
-            return UniversalAnalyzer.COMMENT, token
+            return self._make_comment(token)
+        elif token in (';', '='):
+            self._state = self._GLOBAL
+            return UniversalAnalyzer.FLUSH_GLOBAL_TERM, self._current_line
         else:
             self._state = self._GLOBAL
+            if self._current_line > self._dec_end_line + 1:
+                return UniversalAnalyzer.RESET_AND_START_NEW_FUNCTION, (token, self._current_line)
+            else:
+                return UniversalAnalyzer.START_NEW_FUNCTION, (token, self._current_line)
 
     def _IMP(self, token):
         if token in ("#else", "#if", "#endif"):
@@ -2052,11 +2242,11 @@ class CTokenTranslator(TokenTranslatorBase):
                 self.br_count -= 1
                 if self.br_count == 0:
                     self._state = self._GLOBAL
-                    return UniversalAnalyzer.END_OF_FUNCTION, ""
+                    return UniversalAnalyzer.END_OF_FUNCTION, self._current_line
         if self._is_condition(token):
             return UniversalAnalyzer.CONDITION, token
         elif token.startswith('/*') or token.startswith('//'):
-            return UniversalAnalyzer.COMMENT, token
+            return self._make_comment(token)
         return UniversalAnalyzer.TOKEN, token
 
 class ObjCTokenTranslator(CTokenTranslator):
@@ -2066,12 +2256,12 @@ class ObjCTokenTranslator(CTokenTranslator):
     def _DEC_TO_IMP(self, token):
         if token in ("+", "-"):
             self._state = self._GLOBAL
+            return UniversalAnalyzer.FLUSH_PENDING_COMMENTS, None
         else:
-            CTokenTranslator._DEC_TO_IMP(self, token)
-            if self._state == self._GLOBAL:
+            _res = CTokenTranslator._DEC_TO_IMP(self, token)
+            if self._state == self._GLOBAL and token not in (';', '='):
                 self._state = self._OBJC_DEC_BEGIN
-                return UniversalAnalyzer.START_NEW_FUNCTION,\
-                        (token, self._current_line)
+            return _res
     def _OBJC_DEC_BEGIN(self, token):
         if token == ':':
             self._state = self._OBJC_DEC
@@ -2079,8 +2269,12 @@ class ObjCTokenTranslator(CTokenTranslator):
         elif token == '{':
             self.br_count += 1
             self._state = self._IMP
+            return UniversalAnalyzer.ENTER_FUNCTION_BODY, None
+        elif token.startswith('/*') or token.startswith('//'):
+            return self._make_comment(token)
         else:
             self._state = self._GLOBAL
+            return UniversalAnalyzer.FLUSH_PENDING_COMMENTS, None
     def _OBJC_DEC(self, token):
         if token == '(':
             self._state = self._OBJC_PARAM_TYPE
@@ -2090,6 +2284,9 @@ class ObjCTokenTranslator(CTokenTranslator):
         elif token == '{':
             self.br_count += 1
             self._state = self._IMP
+            return UniversalAnalyzer.ENTER_FUNCTION_BODY, None
+        elif token.startswith('/*') or token.startswith('//'):
+            return self._make_comment(token)
         else:
             self._state = self._OBJC_DEC_BEGIN
             return UniversalAnalyzer.ADD_TO_FUNCTION_NAME, " " + token
@@ -2194,9 +2391,30 @@ token_pattern = re.compile(r"(\w+|/\*|//|:=|::|>=|\*=|\*\*|\*|>"+
                            r"|#\s*define|#\s*if|#\s*else|#\s*endif|#\s*\w+"+
                            r"|[!%^&\*\-=+\|\\<>/\]\+]+|.)", re.M | re.S)
 
+_pp_comment_pattern = re.compile(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|(/\*.*?\*/|//[^\n]*)', re.S)
+
 def generate_tokens(source_code):
     for t, l in generate_tokens_from_code(source_code):
-        if not any(t.startswith(x) for x in ('#define',)): #, '/*', '//')) :
+        if t.startswith('#'):
+            _norm_pp = '#' + t[1:].lstrip()
+            if _norm_pp.startswith('#define'):
+                yield '#define', l
+                for _cm in _pp_comment_pattern.finditer(t):
+                    if _cm.group(1) is not None:
+                        yield _cm.group(1), l
+            elif _norm_pp.startswith('#endif'):
+                yield '#endif', l
+                for _cm in _pp_comment_pattern.finditer(t):
+                    if _cm.group(1) is not None:
+                        yield _cm.group(1), l
+            elif _norm_pp.startswith('#if'):
+                yield '#if', l
+                for _cm in _pp_comment_pattern.finditer(t):
+                    if _cm.group(1) is not None:
+                        yield _cm.group(1), l
+            else:
+                yield t, l
+        else:
             yield t, l
 
 def generate_tokens_from_code(source_code):
@@ -2228,7 +2446,7 @@ def tokens_from_code_with_multiple_newlines(source_code):
                 if not source_code[bindex:index].rstrip().endswith('\\'):
                     break
             if index == -1:
-                break
+                index = len(source_code)
             token = source_code[m.start(0):index]
         elif token == '/*':
             index = source_code.find("*/", index + 2)
@@ -2236,10 +2454,16 @@ def tokens_from_code_with_multiple_newlines(source_code):
                 break
             index += 2
             token = source_code[m.start(0):index]
-        elif token in( '//', '#if','#endif'):
+        elif token == '//':
             index = source_code.find('\n', index)
             if index == -1:
-                break
+                index = len(source_code)
+            token = source_code[m.start(0):index]
+        elif token in ('#if', '#endif'):
+            index = source_code.find('\n', index)
+            if index == -1:
+                index = len(source_code)
+            token = source_code[m.start(0):index]
         elif token == '"' or token == '\'':
             while(1):
                 index += 1

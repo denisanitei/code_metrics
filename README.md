@@ -30,7 +30,8 @@
       # HIS Complexity & Size Thresholds
       cc_threshold: 15
       nloc_threshold: 100
-      min_comment_ratio: 8
+      min_comment_ratio: 10
+      min_file_comment_ratio: 10
       stmt_threshold: 50
       vocf_threshold: 9.0
       
@@ -62,7 +63,8 @@ All parameters are specified as child keys under the `code_metrics` section of t
 | `report_out_path` | `str` | *target build dir* | General | Output directory for the generated XML, HTML, and JUnit reports. Relative paths are resolved against project root. |
 | `cc_threshold` | `int` | `20` | HIS `v(G)` / cyclomatic | Maximum allowed classic McCabe Cyclomatic Complexity per function ($M = 1 + \text{decision points}$, excluding `&&`/`||` short-circuit branches). Evaluates decision density. Recommended OEM limit: `<= 15`. |
 | `nloc_threshold` | `int` | `200` | HIS `COMF` / size | Maximum allowed Non-Comment Lines of Code per function or file. Recommended limit: `<= 100` (functions), `<= 200` (files). |
-| `min_comment_ratio` | `float` | `10.0` | HIS `CCRP` / comments | Minimum allowed comment density ratio (%), calculated as: $\frac{\text{comments}}{\text{NLOC} + \text{comments}} \times 100$. |
+| `min_comment_ratio` | `float` | `10.0` | HIS `CDRP` / function comments | Minimum allowed function comment density ratio (%), including header/Doxygen comments immediately above the function and inline body comments, calculated as: $\frac{\text{comments}}{\text{NLOC} + \text{comments}} \times 100$. |
+| `min_file_comment_ratio` | `float` | `10.0` | HIS `CDRP` / file comments | Minimum allowed file comment density ratio (%) across the entire translation unit (all file-level and function-level comments), calculated as: $\frac{\text{comments}}{\text{NLOC} + \text{comments}} \times 100$. |
 | `param_threshold` | `int` | `5` | HIS `PARAM` / stability | Maximum allowed formal parameters per function. Evaluates interface clarity and coupling. |
 | `return_threshold` | `int` | `1` | HIS `RET` / stability | Maximum allowed return points per function (MISRA C single exit point compliance). |
 | `nesting_depth_threshold` | `int` | `4` | HIS `LEVEL` / testability | Maximum control structure nesting depth (`if`, `for`, `while`, `switch`). OEM limit: `<= 7`. |
@@ -88,7 +90,7 @@ The tool enforces metrics derived from the **Hersteller Initiative Software (HIS
 | :--- | :--- | :---: | :---: | :--- |
 | **`v(G)`** | Cyclomatic Complexity | $1 \le v(G) \le 10$ (Warn: $11-15$, Fail: $> 15$) | Function | Low control flow branching, high testability |
 | **`COMF`** | Lines of Code (NLOC) | $1 \le \text{NLOC} \le 100$ | Function / File | Readability, concise modular units |
-| **`CCRP`** | Comment-to-Code Ratio | $\ge 8.0\%$ (Default: $10.0\%$) | Function / File | Self-documenting code base |
+| **`CDRP`** | Comment Density Ratio | $\ge 8.0\%$ (Default: $10.0\%$) | Function / File | Self-documenting code base (includes function header comments) |
 | **`PARAM`** | Number of Parameters | $0 \le \text{PARAM} \le 5$ | Function | Minimal function interface coupling |
 | **`RET`** | Number of Return Points | $\text{RET} = 1$ | Function | Deterministic exit point, easy resource cleanup |
 | **`LEVEL`** | Max Nesting Depth | $1 \le \text{LEVEL} \le 4$ (OEM: $\le 7$) | Function | Comprehensibility and unit test path coverage |
