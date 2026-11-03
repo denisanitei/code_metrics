@@ -889,6 +889,15 @@ def process_cc(self):
 *************************************************************************************************"""
 class cc_xml(Task):
     color = 'PINK'
+    def sig_vars(self):
+        super(cc_xml, self).sig_vars()
+        _hfcca_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'hfcca.py')
+        try:
+            with open(_hfcca_path, 'rb') as _fh:
+                self.m.update(_fh.read())
+        except Exception:
+            pass
+
     def run(self):
         headers = set()
         for _task in self.generator.tasks:
@@ -914,6 +923,15 @@ class cc_xml(Task):
 *************************************************************************************************"""
 class cc_xml2html(Task):
     color = 'PINK'
+    def sig_vars(self):
+        super(cc_xml2html, self).sig_vars()
+        _tpl_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'report_template.html')
+        try:
+            with open(_tpl_path, 'rb') as _fh:
+                self.m.update(_fh.read())
+        except Exception:
+            pass
+
     def run(self):
         _html_path      = self.outputs[0].abspath()
         _html_template  = self.outputs[1].abspath()
