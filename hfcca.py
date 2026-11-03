@@ -145,12 +145,11 @@ class FunctionInfo(object):
             # call to another function
             pass
 
+    def set_path_count(self, count):
+        self.path_count = _cap_his_path(count if count >= 1 else 1)
+
     def add_path_branch(self):
-        if self.path_count < 100000:
-            self.path_count = self.path_count * 2
-        else:
-            # cap path count to avoid integer overflow
-            pass
+        self.path_count = _cap_his_path(self.path_count * 2)
 
     def add_dead_code(self):
         self.dead_code_count += 1
@@ -244,6 +243,784 @@ class FileInformation(list):
         self.sloc    = _sloc
         self.eloc    = _eloc
 
+MAX_HIS_PATH_COUNT = 1000000000
+
+_STMT_BOUNDARY_KEYWORDS = {
+    'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'default',
+    'return', 'break', 'continue', 'goto', 'try', 'catch', 'throw'
+}
+_TRUE_CONST_TOKENS = {
+    '1', '1U', '1u', '1L', '1l', '1UL', '1ul', 'true', 'TRUE', 'STD_ON'
+}
+_FALSE_CONST_TOKENS = {
+    '0', '0U', '0u', '0L', '0l', '0UL', '0ul', 'false', 'FALSE', 'STD_OFF'
+}
+
+
+def _cap_his_path(value):
+    _capped = value if value < MAX_HIS_PATH_COUNT else MAX_HIS_PATH_COUNT
+    return _capped
+
+
+def _strip_outer_parens(tokens):
+    _slice = list(tokens)
+    while len(_slice) >= 2 and _slice[0] == '(' and _slice[-1] == ')':
+        _depth = 0
+        _valid = True
+        for _idx in range(len(_slice) - 1):
+            if _slice[_idx] == '(':
+                _depth += 1
+            elif _slice[_idx] == ')':
+                _depth -= 1
+                if _depth == 0:
+                    _valid = False
+                    break
+            else:
+                # token inside parentheses
+                pass
+        if _valid and _depth == 1:
+            _slice = _slice[1:-1]
+        else:
+            break
+    return _slice
+
+
+def _is_always_true_cond(tokens):
+    _stripped = _strip_outer_parens(tokens)
+    _is_true  = (len(_stripped) == 1 and _stripped[0] in _TRUE_CONST_TOKENS)
+    return _is_true
+
+
+def _is_always_false_cond(tokens):
+    _stripped = _strip_outer_parens(tokens)
+    _is_false = (len(_stripped) == 1 and _stripped[0] in _FALSE_CONST_TOKENS)
+    return _is_false
+
+
+def _find_matching_delim(tokens, open_idx, limit, open_tok, close_tok):
+    _depth = 0
+    _idx   = open_idx
+    while _idx < limit:
+        _tok = tokens[_idx]
+        if _tok == open_tok:
+            _depth += 1
+        elif _tok == close_tok:
+            _depth -= 1
+            if _depth <= 0:
+                return _idx
+        else:
+            # inner token
+            pass
+        _idx += 1
+    return limit - 1
+
+
+def _is_balanced_slice(tokens):
+    _b_depth = 0
+    _p_depth = 0
+    for _tok in tokens:
+        if isinstance(_tok, tuple):
+            continue
+        if _tok == '{':
+            _b_depth += 1
+        elif _tok == '}':
+            _b_depth -= 1
+            if _b_depth < 0:
+                return False
+        elif _tok == '(':
+            _p_depth += 1
+        elif _tok == ')':
+            _p_depth -= 1
+            if _p_depth < 0:
+                return False
+        else:
+            # normal token
+            pass
+    return (_b_depth == 0) and (_p_depth == 0)
+
+
+def _normalize_pp_blocks(tokens):
+    if '#if' not in tokens and '#else' not in tokens and '#elif' not in tokens and '#endif' not in tokens:
+        return tokens
+    _stack = [[[]]]
+    for _tok in tokens:
+        if _tok == '#if':
+            _stack.append([[]])
+        elif _tok in ('#elif', '#else'):
+            if len(_stack) > 1:
+                _stack[-1].append([])
+            else:
+                # unmatched preprocessor branch token ignored
+                pass
+        elif _tok == '#endif':
+            if len(_stack) > 1:
+                _branches = _stack.pop()
+                if all(_is_balanced_slice(_br) for _br in _branches):
+                    _branch_tuples = tuple(tuple(_br) for _br in _branches)
+                    _stack[-1][-1].append(('#PP_BRANCHES', _branch_tuples))
+                else:
+                    # unbalanced preprocessor branches: keep primary #if branch to preserve brace balance
+                    _stack[-1][-1].extend(_branches[0])
+            else:
+                # unmatched #endif ignored
+                pass
+        else:
+            _stack[-1][-1].append(_tok)
+    while len(_stack) > 1:
+        _unclosed = _stack.pop()
+        _stack[-1][-1].extend(_unclosed[0])
+    return _stack[0][0]
+
+
+def _expr_his_paths(expr_tokens):
+    if '?' not in expr_tokens:
+        return 1
+
+    # split on top-level comma expressions or argument lists
+    _parts   = []
+    _cur     = []
+    _p_depth = 0
+    _b_depth = 0
+    _s_depth = 0
+    for _tok in expr_tokens:
+        if isinstance(_tok, tuple):
+            continue
+        if _tok == '(':
+            _p_depth += 1
+            _cur.append(_tok)
+        elif _tok == ')':
+            if _p_depth > 0:
+                _p_depth -= 1
+            _cur.append(_tok)
+        elif _tok == '{':
+            _b_depth += 1
+            _cur.append(_tok)
+        elif _tok == '}':
+            if _b_depth > 0:
+                _b_depth -= 1
+            _cur.append(_tok)
+        elif _tok == '[':
+            _s_depth += 1
+            _cur.append(_tok)
+        elif _tok == ']':
+            if _s_depth > 0:
+                _s_depth -= 1
+            _cur.append(_tok)
+        elif _tok == ',' and _p_depth == 0 and _b_depth == 0 and _s_depth == 0:
+            _parts.append(_cur)
+            _cur = []
+        else:
+            _cur.append(_tok)
+    _parts.append(_cur)
+
+    if len(_parts) > 1:
+        _prod = 1
+        for _part in _parts:
+            _prod = _cap_his_path(_prod * _expr_his_paths(_part))
+        return _prod
+
+    _part    = _parts[0]
+    _p_depth = 0
+    _b_depth = 0
+    _s_depth = 0
+    _q_idx   = -1
+    for _i, _tok in enumerate(_part):
+        if _tok == '(':
+            _p_depth += 1
+        elif _tok == ')' and _p_depth > 0:
+            _p_depth -= 1
+        elif _tok == '{':
+            _b_depth += 1
+        elif _tok == '}' and _b_depth > 0:
+            _b_depth -= 1
+        elif _tok == '[':
+            _s_depth += 1
+        elif _tok == ']' and _s_depth > 0:
+            _s_depth -= 1
+        elif _tok == '?' and _p_depth == 0 and _b_depth == 0 and _s_depth == 0:
+            _q_idx = _i
+            break
+        else:
+            # continue scanning expression
+            pass
+
+    if _q_idx != -1:
+        _q_nest    = 1
+        _p_depth   = 0
+        _b_depth   = 0
+        _s_depth   = 0
+        _colon_idx = -1
+        for _j in range(_q_idx + 1, len(_part)):
+            _tok = _part[_j]
+            if _tok == '(':
+                _p_depth += 1
+            elif _tok == ')' and _p_depth > 0:
+                _p_depth -= 1
+            elif _tok == '{':
+                _b_depth += 1
+            elif _tok == '}' and _b_depth > 0:
+                _b_depth -= 1
+            elif _tok == '[':
+                _s_depth += 1
+            elif _tok == ']' and _s_depth > 0:
+                _s_depth -= 1
+            elif _p_depth == 0 and _b_depth == 0 and _s_depth == 0:
+                if _tok == '?':
+                    _q_nest += 1
+                elif _tok == ':':
+                    _q_nest -= 1
+                    if _q_nest == 0:
+                        _colon_idx = _j
+                        break
+                else:
+                    # token inside ternary arm
+                    pass
+            else:
+                # nested bracket token
+                pass
+        if _colon_idx != -1:
+            _p_cond  = _expr_his_paths(_part[:_q_idx])
+            _p_true  = _expr_his_paths(_part[_q_idx + 1:_colon_idx])
+            _p_false = _expr_his_paths(_part[_colon_idx + 1:])
+            return _cap_his_path(_p_cond * (_p_true + _p_false))
+
+    # no top-level '?', multiply paths of any parenthesized or bracketed sub-expressions
+    _prod  = 1
+    _i     = 0
+    _limit = len(_part)
+    while _i < _limit:
+        _tok = _part[_i]
+        if _tok == '(':
+            _close = _find_matching_delim(_part, _i, _limit, '(', ')')
+            _prod  = _cap_his_path(_prod * _expr_his_paths(_part[_i + 1:_close]))
+            _i     = _close + 1
+        elif _tok == '[':
+            _close = _find_matching_delim(_part, _i, _limit, '[', ']')
+            _prod  = _cap_his_path(_prod * _expr_his_paths(_part[_i + 1:_close]))
+            _i     = _close + 1
+        else:
+            _i += 1
+    return _prod
+
+
+def _split_for_semicolons(hdr_tokens):
+    _parts   = []
+    _cur     = []
+    _p_depth = 0
+    _b_depth = 0
+    for _tok in hdr_tokens:
+        if _tok == '(':
+            _p_depth += 1
+            _cur.append(_tok)
+        elif _tok == ')' and _p_depth > 0:
+            _p_depth -= 1
+            _cur.append(_tok)
+        elif _tok == '{':
+            _b_depth += 1
+            _cur.append(_tok)
+        elif _tok == '}' and _b_depth > 0:
+            _b_depth -= 1
+            _cur.append(_tok)
+        elif _tok == ';' and _p_depth == 0 and _b_depth == 0:
+            _parts.append(_cur)
+            _cur = []
+        else:
+            _cur.append(_tok)
+    _parts.append(_cur)
+    return _parts
+
+
+def _skip_case_label(tokens, idx, limit):
+    # idx points right after 'case'
+    _p_depth = 0
+    _q_depth = 0
+    while idx < limit:
+        _tok = tokens[idx]
+        if _tok == '(':
+            _p_depth += 1
+        elif _tok == ')' and _p_depth > 0:
+            _p_depth -= 1
+        elif _p_depth == 0:
+            if _tok == '?':
+                _q_depth += 1
+            elif _tok == ':':
+                if _q_depth > 0:
+                    _q_depth -= 1
+                else:
+                    return idx + 1
+            elif _tok in (';', '{', '}'):
+                return idx
+            else:
+                # token inside case label constant expression
+                pass
+        else:
+            # token inside parens
+            pass
+        idx += 1
+    return idx
+
+
+def _scan_simple_expr(tokens, idx, limit):
+    _expr       = []
+    _saw_assign = False
+    _start      = idx
+    while idx < limit:
+        _tok = tokens[idx]
+        if isinstance(_tok, tuple):
+            break
+        if _tok == ';':
+            idx += 1
+            break
+        if _tok == '}':
+            break
+        if _tok in _STMT_BOUNDARY_KEYWORDS and idx > _start:
+            break
+        if _tok == '(':
+            _close = _find_matching_delim(tokens, idx, limit, '(', ')')
+            _expr.extend(tokens[idx:_close + 1])
+            idx = _close + 1
+        elif _tok == '{':
+            if _saw_assign:
+                _close = _find_matching_delim(tokens, idx, limit, '{', '}')
+                _expr.extend(tokens[idx:_close + 1])
+                idx = _close + 1
+            else:
+                break
+        else:
+            if _tok in ASSIGN_OPERATORS:
+                _saw_assign = True
+            else:
+                # non-assignment token
+                pass
+            _expr.append(_tok)
+            idx += 1
+    return _expr, idx
+
+
+def _parse_his_seq(tokens, start_idx=0, end_idx=None):
+    _limit = len(tokens) if end_idx is None else end_idx
+    _c     = 1
+    _b     = 0
+    _k     = 0
+    _r     = 0
+    _gotos = {}
+    _idx   = start_idx
+
+    while _idx < _limit:
+        while (
+            _idx + 1 < _limit
+            and isinstance(tokens[_idx], str)
+            and tokens[_idx] not in ('case', 'default')
+            and tokens[_idx].isidentifier()
+            and tokens[_idx + 1] == ':'
+        ):
+            _lbl = tokens[_idx]
+            _idx += 2
+            if _lbl in _gotos:
+                _c = _cap_his_path(_c + _gotos.pop(_lbl))
+            else:
+                # label without pending forward goto
+                pass
+
+        if _idx >= _limit:
+            break
+
+        if tokens[_idx] == '}':
+            _idx += 1
+            continue
+
+        (_sc, _sb, _sk, _sr, _sg), _next_idx = _parse_his_stmt(tokens, _idx, _limit)
+        if _next_idx <= _idx:
+            _next_idx = _idx + 1
+        else:
+            # parser advanced
+            pass
+
+        if _c > 0:
+            _b = _cap_his_path(_b + _c * _sb)
+            _k = _cap_his_path(_k + _c * _sk)
+            _r = _cap_his_path(_r + _c * _sr)
+            for _glbl, _gcnt in _sg.items():
+                _gotos[_glbl] = _cap_his_path(_gotos.get(_glbl, 0) + _c * _gcnt)
+            _c = _cap_his_path(_c * _sc)
+        else:
+            # unreachable code following unconditional jump/return
+            pass
+
+        _idx = _next_idx
+
+    return (_c, _b, _k, _r, _gotos)
+
+
+def _parse_his_stmt(tokens, idx, limit):
+    _tok = tokens[idx]
+
+    if isinstance(_tok, tuple) and _tok[0] == '#PP_BRANCHES':
+        _best_res   = (1, 0, 0, 0, {})
+        _best_total = 0
+        for _br_slice in _tok[1]:
+            _res   = _parse_his_seq(list(_br_slice))
+            _total = _res[0] + _res[1] + _res[2] + _res[3] + sum(_res[4].values())
+            if _total > _best_total:
+                _best_total = _total
+                _best_res   = _res
+            else:
+                # branch does not exceed max paths
+                pass
+        return _best_res, idx + 1
+
+    if _tok == '{':
+        _close_b = _find_matching_delim(tokens, idx, limit, '{', '}')
+        _res     = _parse_his_seq(tokens, idx + 1, _close_b)
+        return _res, _close_b + 1
+
+    if _tok == ';':
+        return (1, 0, 0, 0, {}), idx + 1
+
+    if _tok == 'if':
+        # iterative parsing of if / else if / else ladders to avoid deep recursion
+        _branches = []
+        while True:
+            idx += 1
+            _cond_p = 1
+            if idx < limit and tokens[idx] == '(':
+                _close_p = _find_matching_delim(tokens, idx, limit, '(', ')')
+                _cond_p  = _expr_his_paths(tokens[idx + 1:_close_p])
+                idx      = _close_p + 1
+            else:
+                # malformed if without condition parens
+                pass
+
+            if idx < limit:
+                _then_res, idx = _parse_his_stmt(tokens, idx, limit)
+            else:
+                _then_res = (1, 0, 0, 0, {})
+
+            _branches.append((_cond_p, _then_res))
+
+            if idx < limit and tokens[idx] == 'else':
+                idx += 1
+                if idx < limit and tokens[idx] == 'if':
+                    continue
+                elif idx < limit:
+                    _else_res, idx = _parse_his_stmt(tokens, idx, limit)
+                    break
+                else:
+                    _else_res = (1, 0, 0, 0, {})
+                    break
+            else:
+                _else_res = (1, 0, 0, 0, {})
+                break
+
+        _acc_c, _acc_b, _acc_k, _acc_r, _acc_g = _else_res
+        for _cp, (_tc, _tb, _tk, _tr, _tg) in reversed(_branches):
+            _merged_g = {}
+            for _gl, _gv in _tg.items():
+                _merged_g[_gl] = _cap_his_path(_merged_g.get(_gl, 0) + _cp * _gv)
+            for _gl, _gv in _acc_g.items():
+                _merged_g[_gl] = _cap_his_path(_merged_g.get(_gl, 0) + _cp * _gv)
+            _acc_c = _cap_his_path(_cp * (_tc + _acc_c))
+            _acc_b = _cap_his_path(_cp * (_tb + _acc_b))
+            _acc_k = _cap_his_path(_cp * (_tk + _acc_k))
+            _acc_r = _cap_his_path(_cp * (_tr + _acc_r))
+            _acc_g = _merged_g
+        return (_acc_c, _acc_b, _acc_k, _acc_r, _acc_g), idx
+
+    if _tok == 'while':
+        idx += 1
+        _cond_p     = 1
+        _cond_slice = []
+        if idx < limit and tokens[idx] == '(':
+            _close_p    = _find_matching_delim(tokens, idx, limit, '(', ')')
+            _cond_slice = tokens[idx + 1:_close_p]
+            _cond_p     = _expr_his_paths(_cond_slice)
+            idx         = _close_p + 1
+        else:
+            # while without parens
+            pass
+        if idx < limit:
+            (_bc, _bb, _bk, _br, _bg), idx = _parse_his_stmt(tokens, idx, limit)
+        else:
+            _bc, _bb, _bk, _br, _bg = 1, 0, 0, 0, {}
+        _skip  = 0 if _is_always_true_cond(_cond_slice) else 1
+        _out_c = _cap_his_path(_cond_p * (_skip + _bc + _bk + _bb))
+        _out_r = _cap_his_path(_cond_p * _br)
+        _out_g = {_gl: _cap_his_path(_cond_p * _gv) for _gl, _gv in _bg.items()}
+        return (_out_c, 0, 0, _out_r, _out_g), idx
+
+    if _tok == 'for':
+        idx += 1
+        _hdr_p    = 1
+        _has_cond = True
+        if idx < limit and tokens[idx] == '(':
+            _close_p    = _find_matching_delim(tokens, idx, limit, '(', ')')
+            _hdr_slice  = tokens[idx + 1:_close_p]
+            _hdr_p      = _expr_his_paths(_hdr_slice)
+            _semi_parts = _split_for_semicolons(_hdr_slice)
+            if len(_semi_parts) == 3 and (len(_semi_parts[1]) == 0 or _is_always_true_cond(_semi_parts[1])):
+                _has_cond = False
+            else:
+                # conditional for loop
+                pass
+            idx = _close_p + 1
+        else:
+            # for without parens
+            pass
+        if idx < limit:
+            (_bc, _bb, _bk, _br, _bg), idx = _parse_his_stmt(tokens, idx, limit)
+        else:
+            _bc, _bb, _bk, _br, _bg = 1, 0, 0, 0, {}
+        _skip  = 1 if _has_cond else 0
+        _out_c = _cap_his_path(_hdr_p * (_skip + _bc + _bk + _bb))
+        _out_r = _cap_his_path(_hdr_p * _br)
+        _out_g = {_gl: _cap_his_path(_hdr_p * _gv) for _gl, _gv in _bg.items()}
+        return (_out_c, 0, 0, _out_r, _out_g), idx
+
+    if _tok == 'do':
+        idx += 1
+        if idx < limit:
+            (_bc, _bb, _bk, _br, _bg), idx = _parse_his_stmt(tokens, idx, limit)
+        else:
+            _bc, _bb, _bk, _br, _bg = 1, 0, 0, 0, {}
+        _cond_p     = 1
+        _cond_slice = []
+        if idx < limit and tokens[idx] == 'while':
+            idx += 1
+            if idx < limit and tokens[idx] == '(':
+                _close_p    = _find_matching_delim(tokens, idx, limit, '(', ')')
+                _cond_slice = tokens[idx + 1:_close_p]
+                _cond_p     = _expr_his_paths(_cond_slice)
+                idx         = _close_p + 1
+            else:
+                # do-while missing condition parens
+                pass
+            if idx < limit and tokens[idx] == ';':
+                idx += 1
+            else:
+                # missing semicolon after do-while
+                pass
+        else:
+            # malformed do without while
+            pass
+        _iter_end = _bc + _bk
+        if _is_always_false_cond(_cond_slice):
+            _out_c = _cap_his_path(_iter_end + _bb)
+        elif _iter_end > 0:
+            _out_c = _cap_his_path(_cond_p * (_iter_end + 1) + _bb)
+        else:
+            _out_c = _bb
+        return (_out_c, 0, 0, _br, _bg), idx
+
+    if _tok == 'switch':
+        idx += 1
+        _expr_p = 1
+        if idx < limit and tokens[idx] == '(':
+            _close_p = _find_matching_delim(tokens, idx, limit, '(', ')')
+            _expr_p  = _expr_his_paths(tokens[idx + 1:_close_p])
+            idx      = _close_p + 1
+        else:
+            # switch without parens
+            pass
+
+        if idx >= limit or tokens[idx] != '{':
+            if idx < limit:
+                (_sc, _sb, _sk, _sr, _sg), idx = _parse_his_stmt(tokens, idx, limit)
+                return (
+                    _cap_his_path(_expr_p * (_sc + _sb)),
+                    0,
+                    _cap_his_path(_expr_p * _sk),
+                    _cap_his_path(_expr_p * _sr),
+                    {_gl: _cap_his_path(_expr_p * _gv) for _gl, _gv in _sg.items()}
+                ), idx
+            return (_expr_p, 0, 0, 0, {}), idx
+
+        _close_b = _find_matching_delim(tokens, idx, limit, '{', '}')
+        _body    = tokens[idx + 1:_close_b]
+        idx      = _close_b + 1
+
+        _groups      = []
+        _cur_tokens  = []
+        _in_group    = False
+        _has_default = False
+        _b_depth     = 0
+        _p_depth     = 0
+        _j           = 0
+        _body_len    = len(_body)
+
+        while _j < _body_len:
+            _btok = _body[_j]
+            if _b_depth == 0 and _p_depth == 0 and _btok == 'case':
+                if _in_group and len(_cur_tokens) > 0:
+                    _groups.append(_cur_tokens)
+                    _cur_tokens = []
+                else:
+                    # stacked empty case labels share the same handler block
+                    pass
+                _in_group = True
+                _j        = _skip_case_label(_body, _j + 1, _body_len)
+                continue
+            elif _b_depth == 0 and _p_depth == 0 and _btok == 'default' and _j + 1 < _body_len and _body[_j + 1] == ':':
+                _has_default = True
+                if _in_group and len(_cur_tokens) > 0:
+                    _groups.append(_cur_tokens)
+                    _cur_tokens = []
+                else:
+                    # stacked default label shares the same handler block
+                    pass
+                _in_group = True
+                _j += 2
+                continue
+            else:
+                if _btok == '{':
+                    _b_depth += 1
+                elif _btok == '}' and _b_depth > 0:
+                    _b_depth -= 1
+                elif _btok == '(':
+                    _p_depth += 1
+                elif _btok == ')' and _p_depth > 0:
+                    _p_depth -= 1
+                else:
+                    # regular token inside switch body
+                    pass
+                if _in_group:
+                    _cur_tokens.append(_btok)
+                else:
+                    # declaration before first case label
+                    pass
+                _j += 1
+
+        if _in_group:
+            _groups.append(_cur_tokens)
+        else:
+            # switch with no case or default labels
+            pass
+
+        _sw_cont     = 0
+        _sw_k        = 0
+        _sw_r        = 0
+        _sw_gotos    = {}
+        _fallthrough = 0
+
+        for _grp in _groups:
+            _entering               = _cap_his_path(1 + _fallthrough)
+            _gc, _gb, _gk, _gr, _gg = _parse_his_seq(_grp)
+            _sw_cont                = _cap_his_path(_sw_cont + _entering * _gb)
+            _sw_k                   = _cap_his_path(_sw_k + _entering * _gk)
+            _sw_r                   = _cap_his_path(_sw_r + _entering * _gr)
+            for _gl, _gv in _gg.items():
+                _sw_gotos[_gl] = _cap_his_path(_sw_gotos.get(_gl, 0) + _entering * _gv)
+            _fallthrough            = _cap_his_path(_entering * _gc)
+
+        _sw_cont = _cap_his_path(_sw_cont + _fallthrough)
+        if not _has_default:
+            _sw_cont = _cap_his_path(_sw_cont + 1)
+        else:
+            # explicit default branch already accounted for
+            pass
+
+        return (
+            _cap_his_path(_expr_p * _sw_cont),
+            0,
+            _cap_his_path(_expr_p * _sw_k),
+            _cap_his_path(_expr_p * _sw_r),
+            {_gl: _cap_his_path(_expr_p * _gv) for _gl, _gv in _sw_gotos.items()}
+        ), idx
+
+    if _tok == 'try':
+        idx += 1
+        if idx < limit:
+            (_tc, _tb, _tk, _tr, _tg), idx = _parse_his_stmt(tokens, idx, limit)
+        else:
+            _tc, _tb, _tk, _tr, _tg = 1, 0, 0, 0, {}
+        while idx < limit and tokens[idx] == 'catch':
+            idx += 1
+            if idx < limit and tokens[idx] == '(':
+                _close_p = _find_matching_delim(tokens, idx, limit, '(', ')')
+                idx      = _close_p + 1
+            else:
+                # catch without parens
+                pass
+            if idx < limit:
+                (_cc, _cb, _ck, _cr, _cg), idx = _parse_his_stmt(tokens, idx, limit)
+                _tc = _cap_his_path(_tc + _cc)
+                _tb = _cap_his_path(_tb + _cb)
+                _tk = _cap_his_path(_tk + _ck)
+                _tr = _cap_his_path(_tr + _cr)
+                for _gl, _gv in _cg.items():
+                    _tg[_gl] = _cap_his_path(_tg.get(_gl, 0) + _gv)
+            else:
+                break
+        return (_tc, _tb, _tk, _tr, _tg), idx
+
+    if _tok in ('return', 'throw'):
+        _expr, idx = _scan_simple_expr(tokens, idx + 1, limit)
+        _ep        = _expr_his_paths(_expr)
+        return (0, 0, 0, _ep, {}), idx
+
+    if _tok == 'break':
+        idx += 1
+        if idx < limit and tokens[idx] == ';':
+            idx += 1
+        else:
+            # missing semicolon
+            pass
+        return (0, 1, 0, 0, {}), idx
+
+    if _tok == 'continue':
+        idx += 1
+        if idx < limit and tokens[idx] == ';':
+            idx += 1
+        else:
+            # missing semicolon
+            pass
+        return (0, 0, 1, 0, {}), idx
+
+    if _tok == 'goto':
+        idx += 1
+        _target = None
+        if idx < limit and isinstance(tokens[idx], str) and tokens[idx].isidentifier():
+            _target = tokens[idx]
+        else:
+            # computed goto
+            pass
+        _, idx = _scan_simple_expr(tokens, idx, limit)
+        if _target is not None:
+            return (0, 0, 0, 0, {_target: 1}), idx
+        return (0, 0, 0, 1, {}), idx
+
+    if _tok == 'else':
+        idx += 1
+        if idx < limit:
+            return _parse_his_stmt(tokens, idx, limit)
+        return (1, 0, 0, 0, {}), idx
+
+    if _tok == 'case':
+        idx = _skip_case_label(tokens, idx + 1, limit)
+        return (1, 0, 0, 0, {}), idx
+
+    if _tok == 'default':
+        idx += 1
+        if idx < limit and tokens[idx] == ':':
+            idx += 1
+        else:
+            # stray default token
+            pass
+        return (1, 0, 0, 0, {}), idx
+
+    _expr, idx = _scan_simple_expr(tokens, idx, limit)
+    _ep        = _expr_his_paths(_expr)
+    return (_ep, 0, 0, 0, {}), idx
+
+
+def compute_his_path(func_tokens):
+    if not func_tokens:
+        return 1
+    _norm_tokens           = _normalize_pp_blocks(func_tokens)
+    _c, _b, _k, _r, _gotos = _parse_his_seq(_norm_tokens)
+    _total                 = _cap_his_path(_c + _b + _k + _r + sum(_gotos.values()))
+    return _total if _total >= 1 else 1
+
+
 """*************************************************************************************************
 ****************************************************************************************************
 *************************************************************************************************"""
@@ -280,6 +1057,8 @@ class UniversalAnalyzer(list):
         self.in_for                 = False
         self.for_paren              = 0
         self.jump_active            = False
+        self.func_body_tokens       = []
+        self.in_pp_line             = False
 
     def analyze(self, parsed_code, filename):
         fileInfo = FileInformation(filename)
@@ -304,13 +1083,27 @@ class UniversalAnalyzer(list):
         self.in_for                 = False
         self.for_paren              = 0
         self.jump_active            = False
+        self.func_body_tokens       = []
+        self.in_pp_line             = False
 
     def CONDITION(self, token):
         self.TOKEN(token)
         self.current_function.add_condition()
-        self.current_function.add_path_branch()
 
     def TOKEN(self, text):
+        if text.startswith('#'):
+            self.in_pp_line = True
+            if text in ('#if', '#elif', '#else', '#endif'):
+                self.func_body_tokens.append(text)
+            else:
+                # other preprocessor directive ignored for CFG path analysis
+                pass
+        elif not self.in_pp_line:
+            self.func_body_tokens.append(text)
+        else:
+            # token on non-conditional preprocessor directive line
+            pass
+
         if self.newline:
             self.current_function.add_non_comment_line()
             self.newline = False
@@ -538,6 +1331,7 @@ class UniversalAnalyzer(list):
     def NEW_LINE(self, token):
         self.nloc += 1
         self.newline = True
+        self.in_pp_line = False
 
     def ADD_TO_LONG_FUNCTION_NAME(self, app):
         self.current_function.add_to_long_name(app)
@@ -570,6 +1364,7 @@ class UniversalAnalyzer(list):
                         else:
                             # variable referenced in function body
                             pass
+                    self.current_function.set_path_count(compute_his_path(self.func_body_tokens))
                     self.current_function.finalize_metrics()
                 else:
                     # no function object
