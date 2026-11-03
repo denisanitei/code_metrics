@@ -1,0 +1,3360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Quality Report & Metrics Dashboard</title>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+        // Data populated by Jinja2 environment
+        var func_data = [{"name": "Diag_ProcessRoutineControl", "cc": "32", "nloc": "285", "token": "1420", "name_with_params": "Std_ReturnType Diag_ProcessRoutineControl(uint16_t routineId, const uint8_t *subFunction, uint32_t len, uint8_t opt1, uint8_t opt2, uint8_t opt3)", "sline": "112", "pcnt": 6, "ccnt": 14, "ccrp": "4.68", "ret_cnt": 3, "nesting": 5, "stmt_cnt": 72, "stmt_size": "19.72", "goto_cnt": 1, "calls_cnt": 9, "calling_cnt": 12, "path_cnt": 2048, "rec_cnt": 0, "dead_cnt": 2, "call_depth": 7, "if_no_else": 1, "unused_vars": 1, "file": "diag_mgr.c", "is_c_source": 1}, {"name": "SecM_VerifySignature", "cc": "27", "nloc": "215", "token": "1180", "name_with_params": "SecM_StatusType SecM_VerifySignature(const SecM_KeyType *key, const uint8_t *hash, const uint8_t *sig)", "sline": "85", "pcnt": 3, "ccnt": 12, "ccrp": "5.29", "ret_cnt": 2, "nesting": 4, "stmt_cnt": 58, "stmt_size": "20.34", "goto_cnt": 0, "calls_cnt": 8, "calling_cnt": 4, "path_cnt": 512, "rec_cnt": 1, "dead_cnt": 0, "call_depth": 6, "if_no_else": 0, "unused_vars": 0, "file": "secm_crypto.c", "is_c_source": 1}, {"name": "Can_Write", "cc": "24", "nloc": "185", "token": "960", "name_with_params": "Can_ReturnType Can_Write(Can_HwHandleType Hth, const Can_PduType *PduInfo)", "sline": "240", "pcnt": 2, "ccnt": 12, "ccrp": "6.09", "ret_cnt": 2, "nesting": 3, "stmt_cnt": 46, "stmt_size": "20.87", "goto_cnt": 0, "calls_cnt": 5, "calling_cnt": 14, "path_cnt": 256, "rec_cnt": 0, "dead_cnt": 0, "call_depth": 4, "if_no_else": 0, "unused_vars": 0, "file": "can_driver.c", "is_c_source": 1}, {"name": "Nvm_WriteBlock", "cc": "22", "nloc": "170", "token": "880", "name_with_params": "Std_ReturnType Nvm_WriteBlock(uint16_t BlockId, const uint8_t *SrcPtr)", "sline": "330", "pcnt": 2, "ccnt": 14, "ccrp": "7.61", "ret_cnt": 1, "nesting": 3, "stmt_cnt": 42, "stmt_size": "20.95", "goto_cnt": 0, "calls_cnt": 4, "calling_cnt": 6, "path_cnt": 128, "rec_cnt": 0, "dead_cnt": 0, "call_depth": 3, "if_no_else": 0, "unused_vars": 0, "file": "nvm_storage.c", "is_c_source": 1}, {"name": "Dem_ReportErrorStatus", "cc": "20", "nloc": "165", "token": "850", "name_with_params": "void Dem_ReportErrorStatus(Dem_EventIdType EventId, Dem_EventStatusType EventStatus)", "sline": "190", "pcnt": 2, "ccnt": 25, "ccrp": "13.16", "ret_cnt": 1, "nesting": 2, "stmt_cnt": 38, "stmt_size": "22.37", "goto_cnt": 0, "calls_cnt": 6, "calling_cnt": 18, "path_cnt": 64, "rec_cnt": 0, "dead_cnt": 0, "call_depth": 3, "if_no_else": 0, "unused_vars": 0, "file": "dem_events.c", "is_c_source": 1}, {"name": "Os_ScheduleNextTask", "cc": "20", "nloc": "130", "token": "680", "name_with_params": "StatusType Os_ScheduleNextTask(Os_PriorityType priority, Os_ContextType *context)", "sline": "415", "pcnt": 2, "ccnt": 30, "ccrp": "18.75", "ret_cnt": 1, "nesting": 3, "stmt_cnt": 32, "stmt_size": "21.25", "goto_cnt": 0, "calls_cnt": 3, "calling_cnt": 8, "path_cnt": 64, "rec_cnt": 0, "dead_cnt": 0, "call_depth": 5, "if_no_else": 0, "unused_vars": 0, "file": "os_scheduler.c", "is_c_source": 1}, {"name": "Com_SendSignal", "cc": "18", "nloc": "145", "token": "760", "name_with_params": "uint8_t Com_SendSignal(Com_SignalIdType SignalId, const void *SignalDataPtr)", "sline": "78", "pcnt": 2, "ccnt": 18, "ccrp": "11.04", "ret_cnt": 2, "nesting": 3, "stmt_cnt": 35, "stmt_size": "21.71", "goto_cnt": 0, "calls_cnt": 4, "calling_cnt": 10, "path_cnt": 48, "rec_cnt": 0, "dead_cnt": 0, "call_depth": 4, "if_no_else": 0, "unused_vars": 0, "file": "com_signal.c", "is_c_source": 1}, {"name": "EcuM_Init", "cc": "17", "nloc": "155", "token": "820", "name_with_params": "void EcuM_Init(const EcuM_ConfigType *ConfigPtr)", "sline": "50", "pcnt": 1, "ccnt": 20, "ccrp": "11.43", "ret_cnt": 1, "nesting": 2, "stmt_cnt": 40, "stmt_size": "20.50", "goto_cnt": 0, "calls_cnt": 12, "calling_cnt": 1, "path_cnt": 36, "rec_cnt": 0, "dead_cnt": 0, "call_depth": 2, "if_no_else": 0, "unused_vars": 0, "file": "ecum_main.c", "is_c_source": 1}, {"name": "WdgM_CheckpointReached", "cc": "16", "nloc": "120", "token": "610", "name_with_params": "Std_ReturnType WdgM_CheckpointReached(WdgM_SupervisedEntityIdType SEID, WdgM_CheckpointIdType CPID)", "sline": "142", "pcnt": 2, "ccnt": 22, "ccrp": "15.49", "ret_cnt": 1, "nesting": 2, "stmt_cnt": 28, "stmt_size": "21.79", "goto_cnt": 0, "calls_cnt": 3, "calling_cnt": 15, "path_cnt": 32, "rec_cnt": 0, "dead_cnt": 0, "call_depth": 3, "if_no_else": 0, "unused_vars": 0, "file": "wdgm_watchdog.c", "is_c_source": 1}, {"name": "Rte_Read_PedalPosition", "cc": "15", "nloc": "95", "token": "490", "name_with_params": "Std_ReturnType Rte_Read_PedalPosition(uint16_t *data)", "sline": "210", "pcnt": 1, "ccnt": 15, "ccrp": "13.64", "ret_cnt": 1, "nesting": 2, "stmt_cnt": 22, "stmt_size": "22.27", "goto_cnt": 0, "calls_cnt": 2, "calling_cnt": 8, "path_cnt": 24, "rec_cnt": 0, "dead_cnt": 0, "call_depth": 2, "if_no_else": 0, "unused_vars": 0, "file": "rte_sensor.c", "is_c_source": 1}, {"name": "BswM_RequestMode", "cc": "14", "nloc": "105", "token": "530", "name_with_params": "void BswM_RequestMode(BswM_UserType requesting_user, BswM_ModeType requested_mode)", "sline": "95", "pcnt": 2, "ccnt": 20, "ccrp": "16.00", "ret_cnt": 1, "nesting": 2, "stmt_cnt": 24, "stmt_size": "22.08", "goto_cnt": 0, "calls_cnt": 4, "calling_cnt": 5, "path_cnt": 20, "rec_cnt": 0, "dead_cnt": 0, "call_depth": 3, "if_no_else": 0, "unused_vars": 0, "file": "bswm_mode.c", "is_c_source": 1}, {"name": "Spi_SyncTransmit", "cc": "13", "nloc": "90", "token": "460", "name_with_params": "Std_ReturnType Spi_SyncTransmit(Spi_SequenceType Sequence)", "sline": "160", "pcnt": 1, "ccnt": 16, "ccrp": "15.09", "ret_cnt": 1, "nesting": 2, "stmt_cnt": 20, "stmt_size": "23.00", "goto_cnt": 0, "calls_cnt": 3, "calling_cnt": 6, "path_cnt": 16, "rec_cnt": 0, "dead_cnt": 0, "call_depth": 4, "if_no_else": 0, "unused_vars": 0, "file": "spi_driver.c", "is_c_source": 1}, {"name": "IoHwAb_GetPinState", "cc": "8", "nloc": "45", "token": "220", "name_with_params": "IoHwAb_PinStateType IoHwAb_GetPinState(IoHwAb_PinIdType PinId)", "sline": "32", "pcnt": 1, "ccnt": 10, "ccrp": "18.18", "ret_cnt": 1, "nesting": 1, "stmt_cnt": 12, "stmt_size": "18.33", "goto_cnt": 0, "calls_cnt": 2, "calling_cnt": 16, "path_cnt": 8, "rec_cnt": 0, "dead_cnt": 0, "call_depth": 2, "if_no_else": 0, "unused_vars": 0, "file": "io_hw_ab.c", "is_c_source": 1}, {"name": "Inline_GetBufferAddress", "cc": "2", "nloc": "12", "token": "60", "name_with_params": "static inline uint8_t* Inline_GetBufferAddress(uint8_t buffer_idx)", "sline": "25", "pcnt": 1, "ccnt": 8, "ccrp": "40.00", "ret_cnt": 1, "nesting": 1, "stmt_cnt": 4, "stmt_size": "15.00", "goto_cnt": 0, "calls_cnt": 0, "calling_cnt": 3, "path_cnt": 2, "rec_cnt": 0, "dead_cnt": 0, "call_depth": 1, "if_no_else": 0, "unused_vars": 0, "file": "buffer_pool.h", "is_c_source": 0}];
+        var obj_data = [{"filename": "diag_mgr.c", "nloc": "450", "anloc": "112.50", "ccn": "48", "accn": "12.00", "tok": "2200", "atok": "550.00", "ccnt": "38", "ccrp": "7.79", "line_cnt": 1350, "static_decls": 24, "unreachable_stmts": 2}, {"filename": "secm_crypto.c", "nloc": "380", "anloc": "95.00", "ccn": "42", "accn": "10.50", "tok": "1950", "atok": "487.50", "ccnt": "32", "ccrp": "7.77", "line_cnt": 1150, "static_decls": 18, "unreachable_stmts": 0}, {"filename": "can_driver.c", "nloc": "320", "anloc": "80.00", "ccn": "36", "accn": "9.00", "tok": "1620", "atok": "405.00", "ccnt": "26", "ccrp": "7.51", "line_cnt": 980, "static_decls": 15, "unreachable_stmts": 0}, {"filename": "nvm_storage.c", "nloc": "290", "anloc": "72.50", "ccn": "30", "accn": "7.50", "tok": "1480", "atok": "370.00", "ccnt": "28", "ccrp": "8.81", "line_cnt": 910, "static_decls": 14, "unreachable_stmts": 0}, {"filename": "dem_events.c", "nloc": "280", "anloc": "70.00", "ccn": "32", "accn": "8.00", "tok": "1420", "atok": "355.00", "ccnt": "42", "ccrp": "13.04", "line_cnt": 850, "static_decls": 12, "unreachable_stmts": 0}, {"filename": "os_scheduler.c", "nloc": "240", "anloc": "60.00", "ccn": "28", "accn": "7.00", "tok": "1240", "atok": "310.00", "ccnt": "48", "ccrp": "16.67", "line_cnt": 760, "static_decls": 10, "unreachable_stmts": 0}, {"filename": "com_signal.c", "nloc": "220", "anloc": "55.00", "ccn": "26", "accn": "6.50", "tok": "1150", "atok": "287.50", "ccnt": "30", "ccrp": "12.00", "line_cnt": 690, "static_decls": 9, "unreachable_stmts": 0}, {"filename": "ecum_main.c", "nloc": "210", "anloc": "70.00", "ccn": "24", "accn": "8.00", "tok": "1080", "atok": "360.00", "ccnt": "25", "ccrp": "10.64", "line_cnt": 640, "static_decls": 8, "unreachable_stmts": 0}, {"filename": "wdgm_watchdog.c", "nloc": "190", "anloc": "63.33", "ccn": "22", "accn": "7.33", "tok": "980", "atok": "326.67", "ccnt": "32", "ccrp": "14.41", "line_cnt": 580, "static_decls": 7, "unreachable_stmts": 0}, {"filename": "rte_sensor.c", "nloc": "160", "anloc": "53.33", "ccn": "20", "accn": "6.67", "tok": "820", "atok": "273.33", "ccnt": "26", "ccrp": "13.98", "line_cnt": 510, "static_decls": 6, "unreachable_stmts": 0}, {"filename": "bswm_mode.c", "nloc": "150", "anloc": "75.00", "ccn": "22", "accn": "11.00", "tok": "780", "atok": "390.00", "ccnt": "36", "ccrp": "19.35", "line_cnt": 480, "static_decls": 5, "unreachable_stmts": 0}, {"filename": "spi_driver.c", "nloc": "125", "anloc": "62.50", "ccn": "18", "accn": "9.00", "tok": "640", "atok": "320.00", "ccnt": "28", "ccrp": "18.30", "line_cnt": 410, "static_decls": 5, "unreachable_stmts": 0}, {"filename": "io_hw_ab.c", "nloc": "65", "anloc": "32.50", "ccn": "8", "accn": "4.00", "tok": "320", "atok": "160.00", "ccnt": "18", "ccrp": "21.69", "line_cnt": 220, "static_decls": 3, "unreachable_stmts": 0}, {"filename": "buffer_pool.h", "nloc": "25", "anloc": "12.50", "ccn": "3", "accn": "1.50", "tok": "110", "atok": "55.00", "ccnt": "15", "ccrp": "37.50", "line_cnt": 85, "static_decls": 2, "unreachable_stmts": 0}];
+        var th_cc = 20;
+        var th_ccrp = 10;
+        var th_nloc = 200;
+        var th_param = 5;
+        var th_return = 1;
+        var th_nesting = 4;
+        var th_stmt = 50;
+        var th_vocf = 9.0;
+        var th_goto = 0;
+        var th_calling = 10;
+        var th_path = 1000;
+        var th_rec = 0;
+        var th_dead = 0;
+        var th_calls = 7;
+        var th_call_depth = 6;
+        var th_file_lines = 1200;
+        var th_static_decls = 20;
+        var build_date = "2026-10-06 10:32:17";
+        var git_hash = "c030bd6af1ebf95ac43a847b975a51574f5be25e";
+        var has_cc = true;
+        var has_nloc = true;
+        var has_comment_ratio = true;
+        var has_param = true;
+        var has_return = true;
+        var has_nesting = true;
+        var has_stmt = true;
+        var has_calls = true;
+        var has_path = true;
+        var has_call_depth = true;
+        var has_file_lines = true;
+        var has_static_decls = true;
+
+        // Global Charts references
+        var ccChart = null;
+        var topFuncChart = null;
+        var nlocChart = null;
+        var topNlocChart = null;
+        var crChart = null;
+        var topCrChart = null;
+        var paramChart = null;
+        var topParamChart = null;
+        var retChart = null;
+        var topRetChart = null;
+        var nestingChart = null;
+        var topNestingChart = null;
+        var stmtChart = null;
+        var topStmtChart = null;
+        var callsChart = null;
+        var topCallsChart = null;
+        var pathsChart = null;
+        var topPathsChart = null;
+
+        var ccBinsData = [];
+        var nlocBinsData = [];
+        var crBinsData = [];
+        var paramBinsData = [];
+        var retBinsData = [];
+        var nestingBinsData = [];
+        var stmtBinsData = [];
+        var callsBinsData = [];
+        var pathsBinsData = [];
+
+        var top10FuncsData = [];
+        var top10NlocData = [];
+        var top10CrData = [];
+        var top10ParamData = [];
+        var top10RetData = [];
+        var top10NestingData = [];
+        var top10StmtData = [];
+        var top10CallsData = [];
+        var top10PathsData = [];
+
+        // Application State
+        var funcState = {
+            allData: func_data,
+            filteredData: [],
+            searchTerm: '',
+            violationFilter: 'all',
+            chartFilter: null,
+            sortColumn: 'cc',
+            sortAsc: false,
+            pageSize: 50,
+            currentPage: 1
+        };
+
+        var objState = {
+            allData: obj_data,
+            filteredData: [],
+            searchTerm: '',
+            violationFilter: 'all',
+            sortColumn: 'nloc',
+            sortAsc: false,
+            pageSize: 50,
+            currentPage: 1
+        };
+
+        // Attempt to load Google Charts
+        var chartsLoaded = false;
+        if (typeof google !== 'undefined' && google.charts) {
+            google.charts.load('current', {'packages':['corechart', 'bar']});
+            google.charts.setOnLoadCallback(initCharts);
+        } else {
+            window.addEventListener('DOMContentLoaded', function() {
+                var chartContainers = document.querySelectorAll('.chart-container');
+                chartContainers.forEach(function(c) {
+                    c.innerHTML = '<div class="offline-notice">⚠️ Google Charts unavailable offline. Interactive tables below are fully active.</div>';
+                });
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', function() {
+            initTableControls();
+            applyFuncFilters();
+            applyObjFilters();
+            renderOverallMetrics();
+        });
+
+        function initCharts() {
+            chartsLoaded = true;
+            if (has_cc) {
+                drawComplexityDistributionChart();
+                drawTopComplexFunctionsChart();
+            }
+            if (has_nloc) {
+                drawNLOCDistributionChart();
+                drawTopNLOCFunctionsChart();
+            }
+            if (has_comment_ratio) {
+                drawCommentRatioDistributionChart();
+                drawTopCommentRatioFunctionsChart();
+            }
+            if (has_param) {
+                drawParamsDistributionChart();
+                drawTopParamsFunctionsChart();
+            }
+            if (has_return) {
+                drawReturnsDistributionChart();
+                drawTopReturnsFunctionsChart();
+            }
+            if (has_nesting) {
+                drawNestingDistributionChart();
+                drawTopNestingFunctionsChart();
+            }
+            if (has_stmt) {
+                drawStatementsDistributionChart();
+                drawTopStmtFunctionsChart();
+            }
+            if (has_calls) {
+                drawCalledFunctionsChart();
+                drawTopCallsFunctionsChart();
+            }
+            if (has_path) {
+                drawExecutionPathsChart();
+                drawTopPathsFunctionsChart();
+            }
+        }
+
+        window.addEventListener('resize', function() {
+            if (chartsLoaded) {
+                initCharts();
+            }
+        });
+
+        // --- Metric Cards Summary ---
+        function renderOverallMetrics() {
+            var totalFunctions = func_data.length;
+            var totalFiles = obj_data.length;
+
+            var totalCC = 0;
+            var funcViolations = 0;
+            func_data.forEach(function(f) {
+                var cc = parseInt(f.cc);
+                var nloc = parseInt(f.nloc);
+                var ccrp = parseFloat(f.ccrp);
+                var pcnt = parseInt(f.pcnt) || 0;
+                var ret_cnt = parseInt(f.ret_cnt) || 0;
+                var nesting = parseInt(f.nesting) || 0;
+                var stmt_cnt = parseInt(f.stmt_cnt) || 0;
+                var stmt_size = parseFloat(f.stmt_size) || 0.0;
+                var goto_cnt = parseInt(f.goto_cnt) || 0;
+                var calls_cnt = parseInt(f.calls_cnt) || 0;
+                var calling_cnt = parseInt(f.calling_cnt) || 0;
+                var path_cnt = parseInt(f.path_cnt) || 1;
+                var rec_cnt = parseInt(f.rec_cnt) || 0;
+                var dead_cnt = parseInt(f.dead_cnt) || 0;
+                var call_depth = parseInt(f.call_depth) || 1;
+                totalCC += cc;
+                if (cc > th_cc || nloc > th_nloc || ccrp < th_ccrp || pcnt > th_param || ret_cnt > th_return || nesting > th_nesting || stmt_cnt > th_stmt || stmt_size > th_vocf || goto_cnt > th_goto || calls_cnt > th_calls || calling_cnt > th_calling || path_cnt > th_path || rec_cnt > th_rec || dead_cnt > th_dead || call_depth > th_call_depth) {
+                    funcViolations++;
+                }
+            });
+            var avgCC = totalFunctions > 0 ? (totalCC / totalFunctions).toFixed(2) : '0';
+
+            var totalNLOC = 0;
+            var totalComments = 0;
+            var fileViolations = 0;
+            obj_data.forEach(function(o) {
+                var nloc = parseInt(o.nloc);
+                var ccrp = parseFloat(o.ccrp);
+                var line_cnt = parseInt(o.line_cnt) || nloc;
+                var static_decls = parseInt(o.static_decls) || 0;
+                totalNLOC += nloc;
+                totalComments += parseInt(o.ccnt);
+                if (nloc > th_nloc || ccrp < th_ccrp || line_cnt > th_file_lines || static_decls > th_static_decls) {
+                    fileViolations++;
+                }
+            });
+            var overallCommentRatio = totalNLOC > 0 ? ((totalComments / totalNLOC) * 100).toFixed(2) : '0';
+
+            document.getElementById('total-functions').innerText = totalFunctions;
+            document.getElementById('total-files').innerText = totalFiles;
+            document.getElementById('avg-complexity').innerText = avgCC;
+            document.getElementById('overall-comment-ratio').innerText = overallCommentRatio + '%';
+            document.getElementById('total-nloc').innerText = totalNLOC.toLocaleString();
+            document.getElementById('total-violations').innerText = (funcViolations + fileViolations);
+        }
+
+        // --- Dynamic Comment Ratio Bins Generation (5 Bins < TH, 5 Bins >= TH) ---
+        function generateCommentRatioBins(th, maxVal) {
+            var bins = [];
+
+            // 5 bins < th (Fail / Red)
+            var leftStep = th / 5;
+            var currentStart = 0;
+            for (var i = 0; i < 5; i++) {
+                var currentEnd = (i === 4) ? th : (currentStart + leftStep);
+                var startLbl = Number(currentStart.toFixed(1));
+                var endLbl = Number(currentEnd.toFixed(1));
+                bins.push({
+                    min: currentStart,
+                    max: currentEnd,
+                    label: startLbl + '-' + endLbl + '%',
+                    count: 0,
+                    isViolation: true,
+                    color: '#dc3545'
+                });
+                currentStart = currentEnd;
+            }
+
+            // 5 bins >= th (Pass / Green)
+            var effectiveMax = Math.max(maxVal, 50);
+            var rightSpan = effectiveMax - th;
+            var rawStep = Math.ceil(rightSpan / 5);
+            var rightStep = rawStep <= 5 ? 5 : (rawStep <= 10 ? 10 : Math.ceil(rawStep / 5) * 5);
+
+            currentStart = th;
+            for (var j = 0; j < 5; j++) {
+                if (j === 4) {
+                    var startLbl = Number(currentStart.toFixed(1));
+                    bins.push({
+                        min: currentStart,
+                        max: Infinity,
+                        label: startLbl + '%+',
+                        count: 0,
+                        isViolation: false,
+                        color: '#28a745'
+                    });
+                } else {
+                    var endVal = currentStart + rightStep;
+                    var startLbl = Number(currentStart.toFixed(1));
+                    var endLbl = Number(endVal.toFixed(1));
+                    bins.push({
+                        min: currentStart,
+                        max: endVal,
+                        label: startLbl + '-' + endLbl + '%',
+                        count: 0,
+                        isViolation: false,
+                        color: '#28a745'
+                    });
+                    currentStart = endVal;
+                }
+            }
+
+            return bins;
+        }
+
+        function generateComplexityBins(th, maxVal) {
+            var bins = [];
+
+            // 5 bins <= th (Pass / Green)
+            var leftStep = Math.max(1, Math.ceil(th / 5));
+            var currentStart = 1;
+            for (var i = 0; i < 5; i++) {
+                var currentEnd = (i === 4) ? th : Math.min(th, currentStart + leftStep - 1);
+                if (currentStart > currentEnd) currentEnd = currentStart;
+                var lbl = (currentStart === currentEnd) ? currentStart.toString() : (currentStart + '-' + currentEnd);
+                bins.push({
+                    min: currentStart,
+                    max: currentEnd,
+                    label: lbl,
+                    count: 0,
+                    isViolation: false,
+                    color: '#28a745'
+                });
+                currentStart = currentEnd + 1;
+                if (currentStart > th) break;
+            }
+
+            // 5 bins > th (Fail / Red)
+            var effectiveMax = Math.max(maxVal, th + (leftStep * 5));
+            var rightSpan = effectiveMax - th;
+            var rightStep = Math.max(1, Math.ceil(rightSpan / 5));
+
+            currentStart = th + 1;
+            for (var j = 0; j < 5; j++) {
+                if (j === 4) {
+                    bins.push({
+                        min: currentStart,
+                        max: Infinity,
+                        label: currentStart + '+',
+                        count: 0,
+                        isViolation: true,
+                        color: '#dc3545'
+                    });
+                } else {
+                    var endVal = currentStart + rightStep - 1;
+                    bins.push({
+                        min: currentStart,
+                        max: endVal,
+                        label: currentStart + '-' + endVal,
+                        count: 0,
+                        isViolation: true,
+                        color: '#dc3545'
+                    });
+                    currentStart = endVal + 1;
+                }
+            }
+
+            return bins;
+        }
+
+        // --- Dynamic Cyclomatic Complexity Distribution Chart (5 Bins <= TH, 5 Bins > TH) ---
+        function drawComplexityDistributionChart() {
+            if (!chartsLoaded) return;
+
+            var maxCC = 0;
+            func_data.forEach(function(f) {
+                var val = parseInt(f.cc);
+                if (val > maxCC) maxCC = val;
+            });
+
+            ccBinsData = generateComplexityBins(th_cc, maxCC);
+
+            // Populate counts
+            func_data.forEach(function(f) {
+                var val = parseInt(f.cc);
+                for (var b = 0; b < ccBinsData.length; b++) {
+                    var bin = ccBinsData[b];
+                    if (val >= bin.min && val <= bin.max) {
+                        bin.count++;
+                        break;
+                    }
+                }
+            });
+
+            var data = new google.visualization.DataTable();
+            data.addColumn('string', 'Range');
+            data.addColumn('number', 'Functions');
+            data.addColumn({type: 'string', role: 'style'});
+            data.addColumn({type: 'string', role: 'annotation'});
+
+            ccBinsData.forEach(function(bin) {
+                data.addRow([
+                    bin.label,
+                    bin.count,
+                    'color: ' + bin.color,
+                    bin.count.toString()
+                ]);
+            });
+
+            var options = {
+                title: 'Cyclomatic Complexity Distribution (≤ ' + th_cc + ' Pass 🟢, > ' + th_cc + ' Fail 🔴) [Click bar to filter]',
+                legend: { position: 'none' },
+                hAxis: {
+                    title: 'Complexity Ranges (5 bins ≤ ' + th_cc + ' | 5 bins > ' + th_cc + ')',
+                    slantedText: true,
+                    slantedTextAngle: 30
+                },
+                vAxis: { title: 'Number of Functions', minValue: 0 },
+                chartArea: { width: '80%', height: '65%' },
+                annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true, color: '#333' } }
+            };
+
+            var container = document.getElementById('complexity-distribution-chart');
+            if (!container) return;
+            ccChart = new google.visualization.ColumnChart(container);
+
+            google.visualization.events.addListener(ccChart, 'select', function() {
+                var sel = ccChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedBin = ccBinsData[sel[0].row];
+                    if (selectedBin) {
+                        setFuncChartFilter('cc_bin', 'Complexity ' + selectedBin.label + (selectedBin.isViolation ? ' (Violation > ' + th_cc + ')' : ' (Passed ≤ ' + th_cc + ')'), selectedBin);
+                    }
+                } else {
+                    clearFuncChartFilter();
+                }
+            });
+
+            ccChart.draw(data, options);
+        }
+
+        // --- Top Complex Functions Chart ---
+        function drawTopComplexFunctionsChart() {
+            if (!chartsLoaded) return;
+
+            var sortedFuncs = [...func_data].sort(function(a, b) {
+                return parseInt(b.cc) - parseInt(a.cc);
+            });
+            var topN = 10;
+            top10FuncsData = sortedFuncs.slice(0, Math.min(topN, sortedFuncs.length));
+
+            var chartData = [['Function Name', 'Cyclomatic Complexity', { role: 'style' }, { role: 'annotation' }]];
+            top10FuncsData.forEach(function(f) {
+                var cc = parseInt(f.cc);
+                var barColor = cc > th_cc ? '#dc3545' : '#28a745';
+                chartData.push([f.name, cc, 'color: ' + barColor, cc.toString()]);
+            });
+
+            var data = google.visualization.arrayToDataTable(chartData);
+
+            var options = {
+                title: 'Top 10 Most Complex Functions (≤ ' + th_cc + ' Pass 🟢, > ' + th_cc + ' Fail 🔴) [Click bar to filter]',
+                bars: 'horizontal',
+                hAxis: { title: 'Cyclomatic Complexity', minValue: 0 },
+                vAxis: { title: 'Function Name' },
+                legend: { position: 'none' },
+                chartArea: { width: '60%', height: '80%' },
+                annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true, color: '#333' } }
+            };
+
+            var container = document.getElementById('top-complex-functions-chart');
+            if (!container) return;
+            topFuncChart = new google.visualization.BarChart(container);
+            ccTopChart = topFuncChart;
+
+            google.visualization.events.addListener(topFuncChart, 'select', function() {
+                var sel = topFuncChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedFunc = top10FuncsData[sel[0].row];
+                    if (selectedFunc) {
+                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
+                    }
+                } else {
+                    clearFuncChartFilter();
+                }
+            });
+
+            topFuncChart.draw(data, options);
+        }
+
+        // --- Lines of Code (NLOC) Distribution Chart ---
+        function drawNLOCDistributionChart() {
+            if (!chartsLoaded) return;
+
+            var maxNLOC = 0;
+            func_data.forEach(function(f) {
+                var val = parseInt(f.nloc) || 0;
+                if (val > maxNLOC) maxNLOC = val;
+            });
+
+            nlocBinsData = generateComplexityBins(th_nloc, maxNLOC);
+
+            func_data.forEach(function(f) {
+                var val = parseInt(f.nloc) || 0;
+                for (var b = 0; b < nlocBinsData.length; b++) {
+                    var bin = nlocBinsData[b];
+                    if (bin.max === Infinity) {
+                        if (val >= bin.min) {
+                            bin.count++;
+                            break;
+                        }
+                    } else {
+                        if (val >= bin.min && val <= bin.max) {
+                            bin.count++;
+                            break;
+                        }
+                    }
+                }
+            });
+
+            var data = new google.visualization.DataTable();
+            data.addColumn('string', 'Lines of Code');
+            data.addColumn('number', 'Functions');
+            data.addColumn({type: 'string', role: 'style'});
+            data.addColumn({type: 'string', role: 'annotation'});
+
+            nlocBinsData.forEach(function(bin) {
+                data.addRow([
+                    bin.label,
+                    bin.count,
+                    'color: ' + bin.color,
+                    bin.count.toString()
+                ]);
+            });
+
+            var options = {
+                title: 'Lines of Code (NLOC) Distribution (≤ ' + th_nloc + ' Pass 🟢, > ' + th_nloc + ' Fail 🔴) [Click bar to filter]',
+                legend: { position: 'none' },
+                hAxis: {
+                    title: 'NLOC Ranges (5 bins ≤ ' + th_nloc + ' | 5 bins > ' + th_nloc + ')',
+                    slantedText: true,
+                    slantedTextAngle: 30
+                },
+                vAxis: { title: 'Number of Functions', minValue: 0 },
+                chartArea: { width: '80%', height: '65%' },
+                annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true, color: '#333' } }
+            };
+
+            var container = document.getElementById('nloc-distribution-chart');
+            if (!container) return;
+            nlocChart = new google.visualization.ColumnChart(container);
+
+            google.visualization.events.addListener(nlocChart, 'select', function() {
+                var sel = nlocChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedBin = nlocBinsData[sel[0].row];
+                    if (selectedBin) {
+                        setFuncChartFilter('nloc_bin', 'NLOC ' + selectedBin.label + (selectedBin.isViolation ? ' (Violation > ' + th_nloc + ')' : ' (Passed ≤ ' + th_nloc + ')'), selectedBin);
+                    }
+                } else {
+                    clearFuncChartFilter();
+                }
+            });
+
+            nlocChart.draw(data, options);
+        }
+
+        // --- Top Longest Functions (NLOC) Chart ---
+        function drawTopNLOCFunctionsChart() {
+            if (!chartsLoaded) return;
+
+            var sortedFuncs = [...func_data].sort(function(a, b) {
+                return parseInt(b.nloc) - parseInt(a.nloc);
+            });
+            var topN = 10;
+            top10NlocData = sortedFuncs.slice(0, Math.min(topN, sortedFuncs.length));
+
+            var chartData = [['Function Name', 'Lines of Code (NLOC)', { role: 'style' }, { role: 'annotation' }]];
+            top10NlocData.forEach(function(f) {
+                var nloc = parseInt(f.nloc);
+                var barColor = nloc > th_nloc ? '#dc3545' : '#28a745';
+                chartData.push([f.name, nloc, 'color: ' + barColor, nloc.toString()]);
+            });
+
+            var data = google.visualization.arrayToDataTable(chartData);
+
+            var options = {
+                title: 'Top 10 Longest Functions (NLOC) (≤ ' + th_nloc + ' Pass 🟢, > ' + th_nloc + ' Fail 🔴) [Click bar to filter]',
+                bars: 'horizontal',
+                hAxis: { title: 'Lines of Code (NLOC)', minValue: 0 },
+                vAxis: { title: 'Function Name' },
+                legend: { position: 'none' },
+                chartArea: { width: '60%', height: '80%' },
+                annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true, color: '#333' } }
+            };
+
+            var container = document.getElementById('top-nloc-functions-chart');
+            if (!container) return;
+            topNlocChart = new google.visualization.BarChart(container);
+
+            google.visualization.events.addListener(topNlocChart, 'select', function() {
+                var sel = topNlocChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedFunc = top10NlocData[sel[0].row];
+                    if (selectedFunc) {
+                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
+                    }
+                } else {
+                    clearFuncChartFilter();
+                }
+            });
+
+            topNlocChart.draw(data, options);
+        }
+
+        // --- Dynamic Comment Ratio Distribution Chart (5 Bins < TH, 5 Bins >= TH) ---
+        function drawCommentRatioDistributionChart() {
+            if (!chartsLoaded) return;
+
+            var maxCR = 0;
+            func_data.forEach(function(f) {
+                var val = parseFloat(f.ccrp);
+                if (val > maxCR) maxCR = val;
+            });
+
+            crBinsData = generateCommentRatioBins(th_ccrp, maxCR);
+
+            // Populate counts
+            func_data.forEach(function(f) {
+                var val = parseFloat(f.ccrp);
+                for (var b = 0; b < crBinsData.length; b++) {
+                    var bin = crBinsData[b];
+                    if (bin.isViolation) {
+                        if (val >= bin.min && val < bin.max) {
+                            bin.count++;
+                            break;
+                        }
+                    } else {
+                        if (bin.max === Infinity) {
+                            if (val >= bin.min) {
+                                bin.count++;
+                                break;
+                            }
+                        } else {
+                            if (val >= bin.min && val < bin.max) {
+                                bin.count++;
+                                break;
+                            }
+                        }
+                    }
+                }
+            });
+
+            var data = new google.visualization.DataTable();
+            data.addColumn('string', 'Range');
+            data.addColumn('number', 'Functions');
+            data.addColumn({type: 'string', role: 'style'});
+            data.addColumn({type: 'string', role: 'annotation'});
+
+            crBinsData.forEach(function(bin) {
+                data.addRow([
+                    bin.label,
+                    bin.count,
+                    'color: ' + bin.color,
+                    bin.count.toString()
+                ]);
+            });
+
+            var options = {
+                title: 'Comment to Code Ratio Distribution (< ' + th_ccrp + '% Fail 🔴, ≥ ' + th_ccrp + '% Pass 🟢) [Click bar to filter]',
+                legend: { position: 'none' },
+                hAxis: {
+                    title: 'Comment Ratio Ranges (5 bins < ' + th_ccrp + '% | 5 bins ≥ ' + th_ccrp + '%)',
+                    slantedText: true,
+                    slantedTextAngle: 30
+                },
+                vAxis: { title: 'Number of Functions', minValue: 0 },
+                chartArea: { width: '80%', height: '65%' },
+                annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true, color: '#333' } }
+            };
+
+            var container = document.getElementById('comment-ratio-distribution-chart');
+            if (!container) return;
+            crChart = new google.visualization.ColumnChart(container);
+
+            google.visualization.events.addListener(crChart, 'select', function() {
+                var sel = crChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedBin = crBinsData[sel[0].row];
+                    if (selectedBin) {
+                        setFuncChartFilter('cr_bin', 'Comment Ratio ' + selectedBin.label + (selectedBin.isViolation ? ' (Violation < ' + th_ccrp + '%)' : ' (Passed ≥ ' + th_ccrp + '%)'), selectedBin);
+                    }
+                } else {
+                    clearFuncChartFilter();
+                }
+            });
+
+            crChart.draw(data, options);
+        }
+
+        // --- Top Lowest Comment Density Functions Chart ---
+        function drawTopCommentRatioFunctionsChart() {
+            if (!chartsLoaded) return;
+
+            var sortedFuncs = [...func_data].sort(function(a, b) {
+                return parseFloat(a.ccrp) - parseFloat(b.ccrp);
+            });
+            var topN = 10;
+            top10CrData = sortedFuncs.slice(0, Math.min(topN, sortedFuncs.length));
+
+            var chartData = [['Function Name', 'Comment Density (%)', { role: 'style' }, { role: 'annotation' }]];
+            top10CrData.forEach(function(f) {
+                var ccrp = parseFloat(f.ccrp);
+                var barColor = ccrp < th_ccrp ? '#dc3545' : '#28a745';
+                chartData.push([f.name, ccrp, 'color: ' + barColor, ccrp.toFixed(1) + '%']);
+            });
+
+            var data = google.visualization.arrayToDataTable(chartData);
+
+            var options = {
+                title: 'Top 10 Lowest Comment Density Functions (< ' + th_ccrp + '% Fail 🔴, ≥ ' + th_ccrp + '% Pass 🟢) [Click bar to filter]',
+                bars: 'horizontal',
+                hAxis: { title: 'Comment Density (%)', minValue: 0 },
+                vAxis: { title: 'Function Name' },
+                legend: { position: 'none' },
+                chartArea: { width: '60%', height: '80%' },
+                annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true, color: '#333' } }
+            };
+
+            var container = document.getElementById('top-comment-ratio-functions-chart');
+            if (!container) return;
+            topCrChart = new google.visualization.BarChart(container);
+
+            google.visualization.events.addListener(topCrChart, 'select', function() {
+                var sel = topCrChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedFunc = top10CrData[sel[0].row];
+                    if (selectedFunc) {
+                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
+                    }
+                } else {
+                    clearFuncChartFilter();
+                }
+            });
+
+            topCrChart.draw(data, options);
+        }
+
+        // --- Function Parameters Distribution Chart (HIS_PARAM) ---
+        function drawParamsDistributionChart() {
+            if (!chartsLoaded) return;
+
+            var maxPcnt = 0;
+            func_data.forEach(function(f) {
+                var p = parseInt(f.pcnt) || 0;
+                if (p > maxPcnt) maxPcnt = p;
+            });
+
+            var maxBin = Math.max(maxPcnt, th_param + 2);
+            paramBinsData = [];
+
+            for (var p = 0; p <= maxBin; p++) {
+                if (p === maxBin && p > th_param) {
+                    paramBinsData.push({
+                        min: p,
+                        max: Infinity,
+                        label: p + '+',
+                        count: 0,
+                        isViolation: true,
+                        color: '#dc3545'
+                    });
+                } else {
+                    var isViol = p > th_param;
+                    paramBinsData.push({
+                        min: p,
+                        max: p,
+                        label: p.toString(),
+                        count: 0,
+                        isViolation: isViol,
+                        color: isViol ? '#dc3545' : '#28a745'
+                    });
+                }
+            }
+
+            func_data.forEach(function(f) {
+                var val = parseInt(f.pcnt) || 0;
+                for (var b = 0; b < paramBinsData.length; b++) {
+                    var bin = paramBinsData[b];
+                    if (bin.max === Infinity) {
+                        if (val >= bin.min) {
+                            bin.count++;
+                            break;
+                        }
+                    } else {
+                        if (val === bin.min) {
+                            bin.count++;
+                            break;
+                        }
+                    }
+                }
+            });
+
+            var data = new google.visualization.DataTable();
+            data.addColumn('string', 'Parameters');
+            data.addColumn('number', 'Functions');
+            data.addColumn({type: 'string', role: 'style'});
+            data.addColumn({type: 'string', role: 'annotation'});
+
+            paramBinsData.forEach(function(bin) {
+                data.addRow([
+                    bin.label,
+                    bin.count,
+                    'color: ' + bin.color,
+                    bin.count.toString()
+                ]);
+            });
+
+            var options = {
+                title: 'Function Parameters Distribution (≤ ' + th_param + ' Pass 🟢, > ' + th_param + ' Fail 🔴) [Click to filter]',
+                legend: { position: 'none' },
+                hAxis: { title: 'Parameter Count (HIS_PARAM)' },
+                vAxis: { title: 'Number of Functions', minValue: 0 },
+                chartArea: { width: '75%', height: '65%' },
+                annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true, color: '#333' } }
+            };
+
+            var container = document.getElementById('params-distribution-chart');
+            if (!container) return;
+            paramChart = new google.visualization.ColumnChart(container);
+
+            google.visualization.events.addListener(paramChart, 'select', function() {
+                var sel = paramChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedBin = paramBinsData[sel[0].row];
+                    if (selectedBin) {
+                        setFuncChartFilter('param_bin', 'Parameters: ' + selectedBin.label + (selectedBin.isViolation ? ' (Violation > ' + th_param + ')' : ' (Passed ≤ ' + th_param + ')'), selectedBin);
+                    }
+                } else {
+                    clearFuncChartFilter();
+                }
+            });
+
+            paramChart.draw(data, options);
+        }
+
+        // --- Top Functions by Parameters (PARAM) Chart ---
+        function drawTopParamsFunctionsChart() {
+            if (!chartsLoaded) return;
+
+            var sortedFuncs = [...func_data].sort(function(a, b) {
+                return (parseInt(b.pcnt) || 0) - (parseInt(a.pcnt) || 0);
+            });
+            var topN = 10;
+            top10ParamData = sortedFuncs.slice(0, Math.min(topN, sortedFuncs.length));
+
+            var chartData = [['Function Name', 'Parameters (PARAM)', { role: 'style' }, { role: 'annotation' }]];
+            top10ParamData.forEach(function(f) {
+                var pcnt = parseInt(f.pcnt) || 0;
+                var barColor = pcnt > th_param ? '#dc3545' : '#28a745';
+                chartData.push([f.name, pcnt, 'color: ' + barColor, pcnt.toString()]);
+            });
+
+            var data = google.visualization.arrayToDataTable(chartData);
+
+            var options = {
+                title: 'Top 10 Functions by Parameters (≤ ' + th_param + ' Pass 🟢, > ' + th_param + ' Fail 🔴) [Click bar to filter]',
+                bars: 'horizontal',
+                hAxis: { title: 'Parameter Count (HIS_PARAM)', minValue: 0 },
+                vAxis: { title: 'Function Name' },
+                legend: { position: 'none' },
+                chartArea: { width: '60%', height: '80%' },
+                annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true, color: '#333' } }
+            };
+
+            var container = document.getElementById('top-params-functions-chart');
+            if (!container) return;
+            topParamChart = new google.visualization.BarChart(container);
+
+            google.visualization.events.addListener(topParamChart, 'select', function() {
+                var sel = topParamChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedFunc = top10ParamData[sel[0].row];
+                    if (selectedFunc) {
+                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
+                    }
+                } else {
+                    clearFuncChartFilter();
+                }
+            });
+
+            topParamChart.draw(data, options);
+        }
+
+        // --- Return Points Distribution Chart (HIS_RETURN) ---
+        function drawReturnsDistributionChart() {
+            if (!chartsLoaded) return;
+
+            var maxRet = 0;
+            func_data.forEach(function(f) {
+                var r = parseInt(f.ret_cnt) || 0;
+                if (r > maxRet) maxRet = r;
+            });
+
+            var maxBin = Math.max(maxRet, th_return + 2);
+            retBinsData = [];
+
+            for (var r = 0; r <= maxBin; r++) {
+                if (r === maxBin && r > th_return) {
+                    retBinsData.push({
+                        min: r,
+                        max: Infinity,
+                        label: r + '+',
+                        count: 0,
+                        isViolation: true,
+                        color: '#dc3545'
+                    });
+                } else {
+                    var isViol = r > th_return;
+                    retBinsData.push({
+                        min: r,
+                        max: r,
+                        label: r.toString(),
+                        count: 0,
+                        isViolation: isViol,
+                        color: isViol ? '#dc3545' : '#28a745'
+                    });
+                }
+            }
+
+            func_data.forEach(function(f) {
+                var val = parseInt(f.ret_cnt) || 0;
+                for (var b = 0; b < retBinsData.length; b++) {
+                    var bin = retBinsData[b];
+                    if (bin.max === Infinity) {
+                        if (val >= bin.min) {
+                            bin.count++;
+                            break;
+                        }
+                    } else {
+                        if (val === bin.min) {
+                            bin.count++;
+                            break;
+                        }
+                    }
+                }
+            });
+
+            var data = new google.visualization.DataTable();
+            data.addColumn('string', 'Return Points');
+            data.addColumn('number', 'Functions');
+            data.addColumn({type: 'string', role: 'style'});
+            data.addColumn({type: 'string', role: 'annotation'});
+
+            retBinsData.forEach(function(bin) {
+                data.addRow([
+                    bin.label,
+                    bin.count,
+                    'color: ' + bin.color,
+                    bin.count.toString()
+                ]);
+            });
+
+            var options = {
+                title: 'Return Points Distribution (≤ ' + th_return + ' Pass 🟢, > ' + th_return + ' Fail 🔴) [Click to filter]',
+                legend: { position: 'none' },
+                hAxis: { title: 'Return Points Count (HIS_RETURN)' },
+                vAxis: { title: 'Number of Functions', minValue: 0 },
+                chartArea: { width: '75%', height: '65%' },
+                annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true, color: '#333' } }
+            };
+
+            var container = document.getElementById('returns-distribution-chart');
+            if (!container) return;
+            retChart = new google.visualization.ColumnChart(container);
+
+            google.visualization.events.addListener(retChart, 'select', function() {
+                var sel = retChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedBin = retBinsData[sel[0].row];
+                    if (selectedBin) {
+                        setFuncChartFilter('return_bin', 'Return Points: ' + selectedBin.label + (selectedBin.isViolation ? ' (Violation > ' + th_return + ')' : ' (Passed ≤ ' + th_return + ')'), selectedBin);
+                    }
+                } else {
+                    clearFuncChartFilter();
+                }
+            });
+
+            retChart.draw(data, options);
+        }
+
+        // --- Top Functions by Return Points (RETURN) Chart ---
+        function drawTopReturnsFunctionsChart() {
+            if (!chartsLoaded) return;
+
+            var sortedFuncs = [...func_data].sort(function(a, b) {
+                return (parseInt(b.ret_cnt) || 0) - (parseInt(a.ret_cnt) || 0);
+            });
+            var topN = 10;
+            top10RetData = sortedFuncs.slice(0, Math.min(topN, sortedFuncs.length));
+
+            var chartData = [['Function Name', 'Return Points (RETURN)', { role: 'style' }, { role: 'annotation' }]];
+            top10RetData.forEach(function(f) {
+                var ret = parseInt(f.ret_cnt) || 0;
+                var barColor = ret > th_return ? '#dc3545' : '#28a745';
+                chartData.push([f.name, ret, 'color: ' + barColor, ret.toString()]);
+            });
+
+            var data = google.visualization.arrayToDataTable(chartData);
+
+            var options = {
+                title: 'Top 10 Functions by Return Points (≤ ' + th_return + ' Pass 🟢, > ' + th_return + ' Fail 🔴) [Click bar to filter]',
+                bars: 'horizontal',
+                hAxis: { title: 'Return Points (HIS_RETURN)', minValue: 0 },
+                vAxis: { title: 'Function Name' },
+                legend: { position: 'none' },
+                chartArea: { width: '60%', height: '80%' },
+                annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true, color: '#333' } }
+            };
+
+            var container = document.getElementById('top-returns-functions-chart');
+            if (!container) return;
+            topRetChart = new google.visualization.BarChart(container);
+
+            google.visualization.events.addListener(topRetChart, 'select', function() {
+                var sel = topRetChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedFunc = top10RetData[sel[0].row];
+                    if (selectedFunc) {
+                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
+                    }
+                } else {
+                    clearFuncChartFilter();
+                }
+            });
+
+            topRetChart.draw(data, options);
+        }
+
+        // --- Control Nesting Depth Distribution Chart (HIS_LEVEL) ---
+        function drawNestingDistributionChart() {
+            if (!chartsLoaded) return;
+
+            var maxNest = 0;
+            func_data.forEach(function(f) {
+                var n = parseInt(f.nesting) || 0;
+                if (n > maxNest) maxNest = n;
+            });
+
+            var maxBin = Math.max(maxNest, th_nesting + 2);
+            nestingBinsData = [];
+
+            for (var n = 0; n <= maxBin; n++) {
+                if (n === maxBin && n > th_nesting) {
+                    nestingBinsData.push({
+                        min: n,
+                        max: Infinity,
+                        label: n + '+',
+                        count: 0,
+                        isViolation: true,
+                        color: '#dc3545'
+                    });
+                } else {
+                    var isViol = n > th_nesting;
+                    nestingBinsData.push({
+                        min: n,
+                        max: n,
+                        label: n.toString(),
+                        count: 0,
+                        isViolation: isViol,
+                        color: isViol ? '#dc3545' : '#28a745'
+                    });
+                }
+            }
+
+            func_data.forEach(function(f) {
+                var val = parseInt(f.nesting) || 0;
+                for (var b = 0; b < nestingBinsData.length; b++) {
+                    var bin = nestingBinsData[b];
+                    if (bin.max === Infinity) {
+                        if (val >= bin.min) {
+                            bin.count++;
+                            break;
+                        }
+                    } else {
+                        if (val === bin.min) {
+                            bin.count++;
+                            break;
+                        }
+                    }
+                }
+            });
+
+            var data = new google.visualization.DataTable();
+            data.addColumn('string', 'Nesting Depth');
+            data.addColumn('number', 'Functions');
+            data.addColumn({type: 'string', role: 'style'});
+            data.addColumn({type: 'string', role: 'annotation'});
+
+            nestingBinsData.forEach(function(bin) {
+                data.addRow([
+                    bin.label,
+                    bin.count,
+                    'color: ' + bin.color,
+                    bin.count.toString()
+                ]);
+            });
+
+            var options = {
+                title: 'Nesting Depth Distribution (≤ ' + th_nesting + ' Pass 🟢, > ' + th_nesting + ' Fail 🔴) [Click to filter]',
+                legend: { position: 'none' },
+                hAxis: { title: 'Control Nesting Level (HIS_LEVEL)' },
+                vAxis: { title: 'Number of Functions', minValue: 0 },
+                chartArea: { width: '75%', height: '65%' },
+                annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true, color: '#333' } }
+            };
+
+            var container = document.getElementById('nesting-distribution-chart');
+            if (!container) return;
+            nestingChart = new google.visualization.ColumnChart(container);
+
+            google.visualization.events.addListener(nestingChart, 'select', function() {
+                var sel = nestingChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedBin = nestingBinsData[sel[0].row];
+                    if (selectedBin) {
+                        setFuncChartFilter('nesting_bin', 'Nesting Depth: ' + selectedBin.label + (selectedBin.isViolation ? ' (Violation > ' + th_nesting + ')' : ' (Passed ≤ ' + th_nesting + ')'), selectedBin);
+                    }
+                } else {
+                    clearFuncChartFilter();
+                }
+            });
+
+            nestingChart.draw(data, options);
+        }
+
+        // --- Top Functions by Nesting Depth (LEVEL) Chart ---
+        function drawTopNestingFunctionsChart() {
+            if (!chartsLoaded) return;
+
+            var sortedFuncs = [...func_data].sort(function(a, b) {
+                return (parseInt(b.nesting) || 0) - (parseInt(a.nesting) || 0);
+            });
+            var topN = 10;
+            top10NestingData = sortedFuncs.slice(0, Math.min(topN, sortedFuncs.length));
+
+            var chartData = [['Function Name', 'Nesting Depth (LEVEL)', { role: 'style' }, { role: 'annotation' }]];
+            top10NestingData.forEach(function(f) {
+                var nesting = parseInt(f.nesting) || 0;
+                var barColor = nesting > th_nesting ? '#dc3545' : '#28a745';
+                chartData.push([f.name, nesting, 'color: ' + barColor, nesting.toString()]);
+            });
+
+            var data = google.visualization.arrayToDataTable(chartData);
+
+            var options = {
+                title: 'Top 10 Functions by Nesting Depth (≤ ' + th_nesting + ' Pass 🟢, > ' + th_nesting + ' Fail 🔴) [Click bar to filter]',
+                bars: 'horizontal',
+                hAxis: { title: 'Control Nesting Level (HIS_LEVEL)', minValue: 0 },
+                vAxis: { title: 'Function Name' },
+                legend: { position: 'none' },
+                chartArea: { width: '60%', height: '80%' },
+                annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true, color: '#333' } }
+            };
+
+            var container = document.getElementById('top-nesting-functions-chart');
+            if (!container) return;
+            topNestingChart = new google.visualization.BarChart(container);
+
+            google.visualization.events.addListener(topNestingChart, 'select', function() {
+                var sel = topNestingChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedFunc = top10NestingData[sel[0].row];
+                    if (selectedFunc) {
+                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
+                    }
+                } else {
+                    clearFuncChartFilter();
+                }
+            });
+
+            topNestingChart.draw(data, options);
+        }
+
+        // --- Executable Statements Distribution Chart (HIS_STMT) ---
+        function drawStatementsDistributionChart() {
+            if (!chartsLoaded) return;
+
+            var maxStmt = 0;
+            func_data.forEach(function(f) {
+                var val = parseInt(f.stmt_cnt) || 0;
+                if (val > maxStmt) maxStmt = val;
+            });
+
+            stmtBinsData = generateComplexityBins(th_stmt, maxStmt);
+
+            func_data.forEach(function(f) {
+                var val = parseInt(f.stmt_cnt) || 0;
+                for (var b = 0; b < stmtBinsData.length; b++) {
+                    var bin = stmtBinsData[b];
+                    if (bin.max === Infinity) {
+                        if (val >= bin.min) {
+                            bin.count++;
+                            break;
+                        }
+                    } else {
+                        if (val >= bin.min && val <= bin.max) {
+                            bin.count++;
+                            break;
+                        }
+                    }
+                }
+            });
+
+            var data = new google.visualization.DataTable();
+            data.addColumn('string', 'Statements');
+            data.addColumn('number', 'Functions');
+            data.addColumn({type: 'string', role: 'style'});
+            data.addColumn({type: 'string', role: 'annotation'});
+
+            stmtBinsData.forEach(function(bin) {
+                data.addRow([
+                    bin.label,
+                    bin.count,
+                    'color: ' + bin.color,
+                    bin.count.toString()
+                ]);
+            });
+
+            var options = {
+                title: 'Executable Statements Distribution (≤ ' + th_stmt + ' Pass 🟢, > ' + th_stmt + ' Fail 🔴) [Click to filter]',
+                legend: { position: 'none' },
+                hAxis: {
+                    title: 'Statements (HIS_STMT)',
+                    slantedText: true,
+                    slantedTextAngle: 30
+                },
+                vAxis: { title: 'Number of Functions', minValue: 0 },
+                chartArea: { width: '75%', height: '65%' },
+                annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true, color: '#333' } }
+            };
+
+            var container = document.getElementById('statements-distribution-chart');
+            if (!container) return;
+            stmtChart = new google.visualization.ColumnChart(container);
+
+            google.visualization.events.addListener(stmtChart, 'select', function() {
+                var sel = stmtChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedBin = stmtBinsData[sel[0].row];
+                    if (selectedBin) {
+                        setFuncChartFilter('stmt_bin', 'Statements: ' + selectedBin.label + (selectedBin.isViolation ? ' (Violation > ' + th_stmt + ')' : ' (Passed ≤ ' + th_stmt + ')'), selectedBin);
+                    }
+                } else {
+                    clearFuncChartFilter();
+                }
+            });
+
+            stmtChart.draw(data, options);
+        }
+
+        // --- Top Functions by Executable Statements (STMT) Chart ---
+        function drawTopStmtFunctionsChart() {
+            if (!chartsLoaded) return;
+
+            var sortedFuncs = [...func_data].sort(function(a, b) {
+                return (parseInt(b.stmt_cnt) || 0) - (parseInt(a.stmt_cnt) || 0);
+            });
+            var topN = 10;
+            top10StmtData = sortedFuncs.slice(0, Math.min(topN, sortedFuncs.length));
+
+            var chartData = [['Function Name', 'Statements (STMT)', { role: 'style' }, { role: 'annotation' }]];
+            top10StmtData.forEach(function(f) {
+                var stmt = parseInt(f.stmt_cnt) || 0;
+                var barColor = stmt > th_stmt ? '#dc3545' : '#28a745';
+                chartData.push([f.name, stmt, 'color: ' + barColor, stmt.toString()]);
+            });
+
+            var data = google.visualization.arrayToDataTable(chartData);
+
+            var options = {
+                title: 'Top 10 Functions by Executable Statements (≤ ' + th_stmt + ' Pass 🟢, > ' + th_stmt + ' Fail 🔴) [Click bar to filter]',
+                bars: 'horizontal',
+                hAxis: { title: 'Executable Statements (HIS_STMT)', minValue: 0 },
+                vAxis: { title: 'Function Name' },
+                legend: { position: 'none' },
+                chartArea: { width: '60%', height: '80%' },
+                annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true, color: '#333' } }
+            };
+
+            var container = document.getElementById('top-stmt-functions-chart');
+            if (!container) return;
+            topStmtChart = new google.visualization.BarChart(container);
+
+            google.visualization.events.addListener(topStmtChart, 'select', function() {
+                var sel = topStmtChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedFunc = top10StmtData[sel[0].row];
+                    if (selectedFunc) {
+                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
+                    }
+                } else {
+                    clearFuncChartFilter();
+                }
+            });
+
+            topStmtChart.draw(data, options);
+        }
+
+        // --- Called Functions / Fan-Out Distribution Chart (HIS_CALLS) ---
+        function drawCalledFunctionsChart() {
+            if (!chartsLoaded) return;
+
+            var maxCalls = 0;
+            func_data.forEach(function(f) {
+                var c = parseInt(f.calls_cnt) || 0;
+                if (c > maxCalls) maxCalls = c;
+            });
+
+            var maxBin = Math.max(maxCalls, th_calls + 2);
+            callsBinsData = [];
+
+            for (var c = 0; c <= maxBin; c++) {
+                if (c === maxBin && c > th_calls) {
+                    callsBinsData.push({
+                        min: c,
+                        max: Infinity,
+                        label: c + '+',
+                        count: 0,
+                        isViolation: true,
+                        color: '#dc3545'
+                    });
+                } else {
+                    var isViol = c > th_calls;
+                    callsBinsData.push({
+                        min: c,
+                        max: c,
+                        label: c.toString(),
+                        count: 0,
+                        isViolation: isViol,
+                        color: isViol ? '#dc3545' : '#28a745'
+                    });
+                }
+            }
+
+            func_data.forEach(function(f) {
+                var val = parseInt(f.calls_cnt) || 0;
+                for (var b = 0; b < callsBinsData.length; b++) {
+                    var bin = callsBinsData[b];
+                    if (bin.max === Infinity) {
+                        if (val >= bin.min) {
+                            bin.count++;
+                            break;
+                        }
+                    } else {
+                        if (val === bin.min) {
+                            bin.count++;
+                            break;
+                        }
+                    }
+                }
+            });
+
+            var data = new google.visualization.DataTable();
+            data.addColumn('string', 'Called Functions');
+            data.addColumn('number', 'Functions');
+            data.addColumn({type: 'string', role: 'style'});
+            data.addColumn({type: 'string', role: 'annotation'});
+
+            callsBinsData.forEach(function(bin) {
+                data.addRow([
+                    bin.label,
+                    bin.count,
+                    'color: ' + bin.color,
+                    bin.count.toString()
+                ]);
+            });
+
+            var options = {
+                title: 'Called Functions / Fan-Out Distribution (≤ ' + th_calls + ' Pass 🟢, > ' + th_calls + ' Fail 🔴) [Click to filter]',
+                legend: { position: 'none' },
+                hAxis: { title: 'Called Functions (HIS_CALLS)' },
+                vAxis: { title: 'Number of Functions', minValue: 0 },
+                chartArea: { width: '75%', height: '65%' },
+                annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true, color: '#333' } }
+            };
+
+            var container = document.getElementById('calls-distribution-chart');
+            if (!container) return;
+            callsChart = new google.visualization.ColumnChart(container);
+
+            google.visualization.events.addListener(callsChart, 'select', function() {
+                var sel = callsChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedBin = callsBinsData[sel[0].row];
+                    if (selectedBin) {
+                        setFuncChartFilter('calls_bin', 'Called Functions: ' + selectedBin.label + (selectedBin.isViolation ? ' (Violation > ' + th_calls + ')' : ' (Passed ≤ ' + th_calls + ')'), selectedBin);
+                    }
+                } else {
+                    clearFuncChartFilter();
+                }
+            });
+
+            callsChart.draw(data, options);
+        }
+
+        // --- Top Functions by Called Functions (CALLS) Chart ---
+        function drawTopCallsFunctionsChart() {
+            if (!chartsLoaded) return;
+
+            var sortedFuncs = [...func_data].sort(function(a, b) {
+                return (parseInt(b.calls_cnt) || 0) - (parseInt(a.calls_cnt) || 0);
+            });
+            var topN = 10;
+            top10CallsData = sortedFuncs.slice(0, Math.min(topN, sortedFuncs.length));
+
+            var chartData = [['Function Name', 'Called Functions (CALLS)', { role: 'style' }, { role: 'annotation' }]];
+            top10CallsData.forEach(function(f) {
+                var calls = parseInt(f.calls_cnt) || 0;
+                var barColor = calls > th_calls ? '#dc3545' : '#28a745';
+                chartData.push([f.name, calls, 'color: ' + barColor, calls.toString()]);
+            });
+
+            var data = google.visualization.arrayToDataTable(chartData);
+
+            var options = {
+                title: 'Top 10 Functions by Called Functions (≤ ' + th_calls + ' Pass 🟢, > ' + th_calls + ' Fail 🔴) [Click bar to filter]',
+                bars: 'horizontal',
+                hAxis: { title: 'Called Functions (HIS_CALLS)', minValue: 0 },
+                vAxis: { title: 'Function Name' },
+                legend: { position: 'none' },
+                chartArea: { width: '60%', height: '80%' },
+                annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true, color: '#333' } }
+            };
+
+            var container = document.getElementById('top-calls-functions-chart');
+            if (!container) return;
+            topCallsChart = new google.visualization.BarChart(container);
+
+            google.visualization.events.addListener(topCallsChart, 'select', function() {
+                var sel = topCallsChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedFunc = top10CallsData[sel[0].row];
+                    if (selectedFunc) {
+                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
+                    }
+                } else {
+                    clearFuncChartFilter();
+                }
+            });
+
+            topCallsChart.draw(data, options);
+        }
+
+        // --- Static Execution Paths Distribution Chart (HIS_PATH) ---
+        function drawExecutionPathsChart() {
+            if (!chartsLoaded) return;
+
+            var maxPath = 0;
+            func_data.forEach(function(f) {
+                var val = parseInt(f.path_cnt) || 1;
+                if (val > maxPath) maxPath = val;
+            });
+
+            pathsBinsData = generateComplexityBins(th_path, maxPath);
+
+            func_data.forEach(function(f) {
+                var val = parseInt(f.path_cnt) || 1;
+                for (var b = 0; b < pathsBinsData.length; b++) {
+                    var bin = pathsBinsData[b];
+                    if (bin.max === Infinity) {
+                        if (val >= bin.min) {
+                            bin.count++;
+                            break;
+                        }
+                    } else {
+                        if (val >= bin.min && val <= bin.max) {
+                            bin.count++;
+                            break;
+                        }
+                    }
+                }
+            });
+
+            var data = new google.visualization.DataTable();
+            data.addColumn('string', 'Execution Paths');
+            data.addColumn('number', 'Functions');
+            data.addColumn({type: 'string', role: 'style'});
+            data.addColumn({type: 'string', role: 'annotation'});
+
+            pathsBinsData.forEach(function(bin) {
+                data.addRow([
+                    bin.label,
+                    bin.count,
+                    'color: ' + bin.color,
+                    bin.count.toString()
+                ]);
+            });
+
+            var options = {
+                title: 'Static Execution Paths Distribution (≤ ' + th_path + ' Pass 🟢, > ' + th_path + ' Fail 🔴) [Click to filter]',
+                legend: { position: 'none' },
+                hAxis: {
+                    title: 'Execution Paths (HIS_PATH)',
+                    slantedText: true,
+                    slantedTextAngle: 30
+                },
+                vAxis: { title: 'Number of Functions', minValue: 0 },
+                chartArea: { width: '75%', height: '65%' },
+                annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true, color: '#333' } }
+            };
+
+            var container = document.getElementById('paths-distribution-chart');
+            if (!container) return;
+            pathsChart = new google.visualization.ColumnChart(container);
+
+            google.visualization.events.addListener(pathsChart, 'select', function() {
+                var sel = pathsChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedBin = pathsBinsData[sel[0].row];
+                    if (selectedBin) {
+                        setFuncChartFilter('paths_bin', 'Execution Paths: ' + selectedBin.label + (selectedBin.isViolation ? ' (Violation > ' + th_path + ')' : ' (Passed ≤ ' + th_path + ')'), selectedBin);
+                    }
+                } else {
+                    clearFuncChartFilter();
+                }
+            });
+
+            pathsChart.draw(data, options);
+        }
+
+        // --- Top Functions by Static Execution Paths (PATH) Chart ---
+        function drawTopPathsFunctionsChart() {
+            if (!chartsLoaded) return;
+
+            var sortedFuncs = [...func_data].sort(function(a, b) {
+                return (parseInt(b.path_cnt) || 1) - (parseInt(a.path_cnt) || 1);
+            });
+            var topN = 10;
+            top10PathsData = sortedFuncs.slice(0, Math.min(topN, sortedFuncs.length));
+
+            var chartData = [['Function Name', 'Execution Paths (PATH)', { role: 'style' }, { role: 'annotation' }]];
+            top10PathsData.forEach(function(f) {
+                var path = parseInt(f.path_cnt) || 1;
+                var barColor = path > th_path ? '#dc3545' : '#28a745';
+                chartData.push([f.name, path, 'color: ' + barColor, path.toString()]);
+            });
+
+            var data = google.visualization.arrayToDataTable(chartData);
+
+            var options = {
+                title: 'Top 10 Functions by Static Execution Paths (≤ ' + th_path + ' Pass 🟢, > ' + th_path + ' Fail 🔴) [Click bar to filter]',
+                bars: 'horizontal',
+                hAxis: { title: 'Execution Paths (HIS_PATH)', minValue: 0 },
+                vAxis: { title: 'Function Name' },
+                legend: { position: 'none' },
+                chartArea: { width: '60%', height: '80%' },
+                annotations: { alwaysOutside: true, textStyle: { fontSize: 11, bold: true, color: '#333' } }
+            };
+
+            var container = document.getElementById('top-paths-functions-chart');
+            if (!container) return;
+            topPathsChart = new google.visualization.BarChart(container);
+
+            google.visualization.events.addListener(topPathsChart, 'select', function() {
+                var sel = topPathsChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedFunc = top10PathsData[sel[0].row];
+                    if (selectedFunc) {
+                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
+                    }
+                } else {
+                    clearFuncChartFilter();
+                }
+            });
+
+            topPathsChart.draw(data, options);
+        }
+
+        // --- Chart Filtering Functions Table ---
+        function setFuncChartFilter(type, label, value) {
+            funcState.chartFilter = { type: type, label: label, value: value };
+            funcState.currentPage = 1;
+            updateFuncFilterBanner();
+            applyFuncFilters();
+            scrollToElement('func_tbl_start');
+        }
+
+        function clearFuncChartFilter() {
+            funcState.chartFilter = null;
+            funcState.currentPage = 1;
+            updateFuncFilterBanner();
+            applyFuncFilters();
+        }
+
+        function updateFuncFilterBanner() {
+            var banner = document.getElementById('func-active-filter-banner');
+            var text = document.getElementById('func-active-filter-text');
+            if (funcState.chartFilter) {
+                banner.style.display = 'flex';
+                text.innerHTML = '<strong>Chart Filter:</strong> ' + funcState.chartFilter.label;
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
+        // --- Filter, Sort & Render Functions Table ---
+        function applyFuncFilters() {
+            var filtered = funcState.allData.filter(function(func) {
+                var cc = parseInt(func.cc);
+                var nloc = parseInt(func.nloc);
+                var ccrp = parseFloat(func.ccrp);
+                var pcnt = parseInt(func.pcnt) || 0;
+                var ret_cnt = parseInt(func.ret_cnt) || 0;
+                var nesting = parseInt(func.nesting) || 0;
+                var stmt_cnt = parseInt(func.stmt_cnt) || 0;
+                var stmt_size = parseFloat(func.stmt_size) || 0.0;
+                var goto_cnt = parseInt(func.goto_cnt) || 0;
+                var calls_cnt = parseInt(func.calls_cnt) || 0;
+                var calling_cnt = parseInt(func.calling_cnt) || 0;
+                var path_cnt = parseInt(func.path_cnt) || 1;
+                var rec_cnt = parseInt(func.rec_cnt) || 0;
+                var dead_cnt = parseInt(func.dead_cnt) || 0;
+                var call_depth = parseInt(func.call_depth) || 1;
+
+                // Chart selection filter
+                if (funcState.chartFilter) {
+                    var cf = funcState.chartFilter;
+                    if (cf.type === 'cc_bin') {
+                        var b = cf.value;
+                        if (cc < b.min || cc > b.max) return false;
+                    }
+                    if (cf.type === 'nloc_bin') {
+                        var b = cf.value;
+                        if (b.max === Infinity) {
+                            if (nloc < b.min) return false;
+                        } else {
+                            if (nloc < b.min || nloc > b.max) return false;
+                        }
+                    }
+                    if (cf.type === 'cr_bin') {
+                        var b = cf.value;
+                        if (b.isViolation) {
+                            if (ccrp < b.min || ccrp >= b.max) return false;
+                        } else {
+                            if (b.max === Infinity) {
+                                if (ccrp < b.min) return false;
+                            } else {
+                                if (ccrp < b.min || ccrp >= b.max) return false;
+                            }
+                        }
+                    }
+                    if (cf.type === 'param_bin') {
+                        var b = cf.value;
+                        if (b.max === Infinity) {
+                            if (pcnt < b.min) return false;
+                        } else {
+                            if (pcnt !== b.min) return false;
+                        }
+                    }
+                    if (cf.type === 'return_bin') {
+                        var b = cf.value;
+                        if (b.max === Infinity) {
+                            if (ret_cnt < b.min) return false;
+                        } else {
+                            if (ret_cnt !== b.min) return false;
+                        }
+                    }
+                    if (cf.type === 'nesting_bin') {
+                        var b = cf.value;
+                        if (b.max === Infinity) {
+                            if (nesting < b.min) return false;
+                        } else {
+                            if (nesting !== b.min) return false;
+                        }
+                    }
+                    if (cf.type === 'stmt_bin') {
+                        var b = cf.value;
+                        if (b.max === Infinity) {
+                            if (stmt_cnt < b.min) return false;
+                        } else {
+                            if (stmt_cnt < b.min || stmt_cnt > b.max) return false;
+                        }
+                    }
+                    if (cf.type === 'calls_bin') {
+                        var b = cf.value;
+                        if (b.max === Infinity) {
+                            if (calls_cnt < b.min) return false;
+                        } else {
+                            if (calls_cnt !== b.min) return false;
+                        }
+                    }
+                    if (cf.type === 'paths_bin') {
+                        var b = cf.value;
+                        if (b.max === Infinity) {
+                            if (path_cnt < b.min) return false;
+                        } else {
+                            if (path_cnt < b.min || path_cnt > b.max) return false;
+                        }
+                    }
+                    if (cf.type === 'cc_left' && !(cc < th_cc)) return false;
+                    if (cf.type === 'cc_th' && !(cc === th_cc)) return false;
+                    if (cf.type === 'cc_right' && !(cc > th_cc)) return false;
+                    if (cf.type === 'cr_range') {
+                        if (cf.value === '<10%' && !(ccrp < 10)) return false;
+                        if (cf.value === '10-30%' && !(ccrp >= 10 && ccrp <= 30)) return false;
+                        if (cf.value === '31-50%' && !(ccrp > 30 && ccrp <= 50)) return false;
+                        if (cf.value === '>50%' && !(ccrp > 50)) return false;
+                    }
+                    if (cf.type === 'func_exact' && func.name !== cf.value) return false;
+                }
+
+                // Quick violation filter
+                if (funcState.violationFilter === 'violations') {
+                    if (!(cc > th_cc || nloc > th_nloc || ccrp < th_ccrp || pcnt > th_param || ret_cnt > th_return || nesting > th_nesting || stmt_cnt > th_stmt || stmt_size > th_vocf || goto_cnt > th_goto || calls_cnt > th_calls || calling_cnt > th_calling || path_cnt > th_path || rec_cnt > th_rec || dead_cnt > th_dead || call_depth > th_call_depth)) return false;
+                } else if (funcState.violationFilter === 'cc') {
+                    if (!(cc > th_cc)) return false;
+                } else if (funcState.violationFilter === 'nloc') {
+                    if (!(nloc > th_nloc)) return false;
+                } else if (funcState.violationFilter === 'ccrp') {
+                    if (!(ccrp < th_ccrp)) return false;
+                } else if (funcState.violationFilter === 'param') {
+                    if (!(pcnt > th_param)) return false;
+                } else if (funcState.violationFilter === 'return') {
+                    if (!(ret_cnt > th_return)) return false;
+                } else if (funcState.violationFilter === 'nesting') {
+                    if (!(nesting > th_nesting)) return false;
+                } else if (funcState.violationFilter === 'stmt') {
+                    if (!(stmt_cnt > th_stmt)) return false;
+                } else if (funcState.violationFilter === 'vocf') {
+                    if (!(stmt_size > th_vocf)) return false;
+                } else if (funcState.violationFilter === 'goto') {
+                    if (!(goto_cnt > th_goto)) return false;
+                } else if (funcState.violationFilter === 'calls') {
+                    if (!(calls_cnt > th_calls)) return false;
+                } else if (funcState.violationFilter === 'calling') {
+                    if (!(calling_cnt > th_calling)) return false;
+                } else if (funcState.violationFilter === 'path') {
+                    if (!(path_cnt > th_path)) return false;
+                } else if (funcState.violationFilter === 'rec') {
+                    if (!(rec_cnt > th_rec)) return false;
+                } else if (funcState.violationFilter === 'dead') {
+                    if (!(dead_cnt > th_dead)) return false;
+                } else if (funcState.violationFilter === 'call_depth') {
+                    if (!(call_depth > th_call_depth)) return false;
+                } else if (funcState.violationFilter === 'passed') {
+                    if (cc > th_cc || nloc > th_nloc || ccrp < th_ccrp || pcnt > th_param || ret_cnt > th_return || nesting > th_nesting || stmt_cnt > th_stmt || stmt_size > th_vocf || goto_cnt > th_goto || calls_cnt > th_calls || calling_cnt > th_calling || path_cnt > th_path || rec_cnt > th_rec || dead_cnt > th_dead || call_depth > th_call_depth) return false;
+                }
+
+                // Text search
+                if (funcState.searchTerm) {
+                    var term = funcState.searchTerm.toLowerCase();
+                    var matchName = func.name && func.name.toLowerCase().includes(term);
+                    var matchParams = func.name_with_params && func.name_with_params.toLowerCase().includes(term);
+                    var matchLine = func.sline && func.sline.toString().includes(term);
+                    if (!matchName && !matchParams && !matchLine) return false;
+                }
+
+                return true;
+            });
+
+            // Sort
+            filtered.sort(function(a, b) {
+                var col = funcState.sortColumn;
+                var valA = a[col];
+                var valB = b[col];
+
+                if (['sline', 'pcnt', 'token', 'nloc', 'ccnt', 'ccrp', 'cc', 'ret_cnt', 'nesting', 'stmt_cnt', 'stmt_size', 'goto_cnt', 'calls_cnt', 'calling_cnt', 'path_cnt', 'rec_cnt', 'dead_cnt', 'call_depth'].includes(col)) {
+                    valA = parseFloat(valA) || 0;
+                    valB = parseFloat(valB) || 0;
+                } else {
+                    valA = (valA || '').toString().toLowerCase();
+                    valB = (valB || '').toString().toLowerCase();
+                }
+
+                if (valA < valB) return funcState.sortAsc ? -1 : 1;
+                if (valA > valB) return funcState.sortAsc ? 1 : -1;
+                return 0;
+            });
+
+            funcState.filteredData = filtered;
+            renderFuncTable();
+        }
+
+        function renderFuncTable() {
+            var tbody = document.getElementById("func_data_body");
+            tbody.innerHTML = "";
+
+            var total = funcState.filteredData.length;
+            document.getElementById("func-total-count").innerText = total + " functions found (of " + funcState.allData.length + ")";
+
+            var pageSize = funcState.pageSize;
+            var totalPages = Math.ceil(total / pageSize) || 1;
+            if (funcState.currentPage > totalPages) funcState.currentPage = totalPages;
+
+            var startIndex = (funcState.currentPage - 1) * pageSize;
+            var endIndex = Math.min(startIndex + pageSize, total);
+            var pageData = funcState.filteredData.slice(startIndex, endIndex);
+
+            document.getElementById("func-page-info").innerText = total > 0 ? "Showing " + (startIndex + 1) + " - " + endIndex + " of " + total : "No matching functions";
+
+            if (pageData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="21" style="text-align:center; padding: 25px; color: #888;">No functions match the selected filters.</td></tr>';
+                renderFuncPagination(totalPages);
+                return;
+            }
+
+            var rowsHtml = '';
+            pageData.forEach(function(func) {
+                var cc = parseInt(func.cc);
+                var nloc = parseInt(func.nloc);
+                var ccrp = parseFloat(func.ccrp);
+                var pcnt = parseInt(func.pcnt) || 0;
+                var ret_cnt = parseInt(func.ret_cnt) || 0;
+                var nesting = parseInt(func.nesting) || 0;
+                var stmt_cnt = parseInt(func.stmt_cnt) || 0;
+                var stmt_size = parseFloat(func.stmt_size) || 0.0;
+                var goto_cnt = parseInt(func.goto_cnt) || 0;
+                var calls_cnt = parseInt(func.calls_cnt) || 0;
+                var calling_cnt = parseInt(func.calling_cnt) || 0;
+                var path_cnt = parseInt(func.path_cnt) || 1;
+                var rec_cnt = parseInt(func.rec_cnt) || 0;
+                var dead_cnt = parseInt(func.dead_cnt) || 0;
+                var call_depth = parseInt(func.call_depth) || 1;
+
+                var cc_class = cc > th_cc ? 'highlight-red' : 'highlight-green';
+                var nloc_class = nloc > th_nloc ? 'highlight-red' : 'highlight-green';
+                var ccrp_class = ccrp < th_ccrp ? 'highlight-red' : 'highlight-green';
+                var pcnt_class = pcnt > th_param ? 'highlight-red' : 'highlight-green';
+                var ret_class = ret_cnt > th_return ? 'highlight-red' : 'highlight-green';
+                var nest_class = nesting > th_nesting ? 'highlight-red' : 'highlight-green';
+                var stmt_class = stmt_cnt > th_stmt ? 'highlight-red' : 'highlight-green';
+                var vocf_class = stmt_size > th_vocf ? 'highlight-red' : 'highlight-green';
+                var goto_class = goto_cnt > th_goto ? 'highlight-red' : 'highlight-green';
+                var calls_class = calls_cnt > th_calls ? 'highlight-red' : 'highlight-green';
+                var calling_class = calling_cnt > th_calling ? 'highlight-red' : 'highlight-green';
+                var path_class = path_cnt > th_path ? 'highlight-red' : 'highlight-green';
+                var rec_class = rec_cnt > th_rec ? 'highlight-red' : 'highlight-green';
+                var dead_class = dead_cnt > th_dead ? 'highlight-red' : 'highlight-green';
+                var depth_class = call_depth > th_call_depth ? 'highlight-red' : 'highlight-green';
+
+                var isViolation = (cc > th_cc || nloc > th_nloc || ccrp < th_ccrp || pcnt > th_param || ret_cnt > th_return || nesting > th_nesting || stmt_cnt > th_stmt || stmt_size > th_vocf || goto_cnt > th_goto || calls_cnt > th_calls || calling_cnt > th_calling || path_cnt > th_path || rec_cnt > th_rec || dead_cnt > th_dead || call_depth > th_call_depth);
+                var statusBadge = isViolation ? '<span class="badge badge-fail">FAIL</span>' : '<span class="badge badge-pass">PASS</span>';
+
+                rowsHtml += "<tr>" +
+                                "<td>" + statusBadge + "</td>" +
+                                "<td>" + func.sline + "</td>" +
+                                "<td><strong>" + escapeHtml(func.name) + "</strong></td>" +
+                                "<td class='mono-font'>" + escapeHtml(func.name_with_params) + "</td>" +
+                                "<td class='" + pcnt_class + "'>" + pcnt + "</td>" +
+                                "<td class='" + ret_class + "'>" + ret_cnt + "</td>" +
+                                "<td class='" + nest_class + "'>" + nesting + "</td>" +
+                                "<td class='" + stmt_class + "'>" + stmt_cnt + "</td>" +
+                                "<td class='" + vocf_class + "'>" + stmt_size.toFixed(2) + "</td>" +
+                                "<td class='" + goto_class + "'>" + goto_cnt + "</td>" +
+                                "<td class='" + calls_class + "'>" + calls_cnt + "</td>" +
+                                "<td class='" + calling_class + "'>" + calling_cnt + "</td>" +
+                                "<td class='" + path_class + "'>" + path_cnt + "</td>" +
+                                "<td class='" + rec_class + "'>" + rec_cnt + "</td>" +
+                                "<td class='" + dead_class + "'>" + dead_cnt + "</td>" +
+                                "<td class='" + depth_class + "'>" + call_depth + "</td>" +
+                                "<td>" + func.token + "</td>" +
+                                "<td class='" + nloc_class + "'>" + func.nloc + "</td>" +
+                                "<td>" + func.ccnt + "</td>" +
+                                "<td class='" + ccrp_class + "'>" + ccrp.toFixed(2) + "%</td>" +
+                                "<td class='" + cc_class + "'>" + func.cc + "</td>" +
+                            "</tr>";
+            });
+
+            tbody.innerHTML = rowsHtml;
+            renderFuncPagination(totalPages);
+        }
+
+        function renderFuncPagination(totalPages) {
+            var container = document.getElementById("func-pagination");
+            container.innerHTML = "";
+            if (totalPages <= 1) return;
+
+            var prevBtn = document.createElement("button");
+            prevBtn.className = "page-btn" + (funcState.currentPage === 1 ? " disabled" : "");
+            prevBtn.innerText = "◀ Prev";
+            prevBtn.onclick = function() {
+                if (funcState.currentPage > 1) {
+                    funcState.currentPage--;
+                    renderFuncTable();
+                }
+            };
+            container.appendChild(prevBtn);
+
+            var pageSpan = document.createElement("span");
+            pageSpan.className = "page-indicator";
+            pageSpan.innerText = "Page " + funcState.currentPage + " of " + totalPages;
+            container.appendChild(pageSpan);
+
+            var nextBtn = document.createElement("button");
+            nextBtn.className = "page-btn" + (funcState.currentPage === totalPages ? " disabled" : "");
+            nextBtn.innerText = "Next ▶";
+            nextBtn.onclick = function() {
+                if (funcState.currentPage < totalPages) {
+                    funcState.currentPage++;
+                    renderFuncTable();
+                }
+            };
+            container.appendChild(nextBtn);
+        }
+
+        // --- Filter, Sort & Render Files Table ---
+        function clearObjChartFilter() {
+            objState.chartFilter = null;
+            objState.currentPage = 1;
+            updateObjFilterBanner();
+            applyObjFilters();
+        }
+
+        function updateObjFilterBanner() {
+            var banner = document.getElementById('obj-active-filter-banner');
+            var text = document.getElementById('obj-active-filter-text');
+            if (!banner || !text) return;
+            if (objState.chartFilter) {
+                banner.style.display = 'flex';
+                text.innerHTML = '<strong>Audit Filter:</strong> ' + objState.chartFilter.label;
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
+        function applyObjFilters() {
+            updateObjFilterBanner();
+            var filtered = objState.allData.filter(function(obj) {
+                var nloc = parseInt(obj.nloc);
+                var ccrp = parseFloat(obj.ccrp);
+                var line_cnt = parseInt(obj.line_cnt) || nloc;
+                var static_decls = parseInt(obj.static_decls) || 0;
+                var unreachable = parseInt(obj.unreachable_stmts) || 0;
+
+                if (objState.violationFilter === 'violations') {
+                    if (!(nloc > th_nloc || ccrp < th_ccrp || line_cnt > th_file_lines || static_decls > th_static_decls)) return false;
+                } else if (objState.violationFilter === 'nloc') {
+                    if (!(nloc > th_nloc)) return false;
+                } else if (objState.violationFilter === 'ccrp') {
+                    if (!(ccrp < th_ccrp)) return false;
+                } else if (objState.violationFilter === 'line_cnt') {
+                    if (!(line_cnt > th_file_lines)) return false;
+                } else if (objState.violationFilter === 'static_decls') {
+                    if (!(static_decls > th_static_decls)) return false;
+                } else if (objState.violationFilter === 'passed') {
+                    if (nloc > th_nloc || ccrp < th_ccrp || line_cnt > th_file_lines || static_decls > th_static_decls) return false;
+                }
+
+                if (objState.searchTerm) {
+                    var term = objState.searchTerm.toLowerCase();
+                    if (!obj.filename.toLowerCase().includes(term)) return false;
+                }
+
+                return true;
+            });
+
+            filtered.sort(function(a, b) {
+                var col = objState.sortColumn;
+                var valA = a[col];
+                var valB = b[col];
+
+                if (['nloc', 'anloc', 'ccn', 'accn', 'tok', 'atok', 'ccnt', 'ccrp', 'line_cnt', 'static_decls', 'unreachable_stmts'].includes(col)) {
+                    valA = parseFloat(valA) || 0;
+                    valB = parseFloat(valB) || 0;
+                } else {
+                    valA = (valA || '').toString().toLowerCase();
+                    valB = (valB || '').toString().toLowerCase();
+                }
+
+                if (valA < valB) return objState.sortAsc ? -1 : 1;
+                if (valA > valB) return objState.sortAsc ? 1 : -1;
+                return 0;
+            });
+
+            objState.filteredData = filtered;
+            renderObjTable();
+        }
+
+        function renderObjTable() {
+            var tbody = document.getElementById("object_data_body");
+            tbody.innerHTML = "";
+
+            var total = objState.filteredData.length;
+            document.getElementById("obj-total-count").innerText = total + " files found (of " + objState.allData.length + ")";
+
+            var pageSize = objState.pageSize;
+            var totalPages = Math.ceil(total / pageSize) || 1;
+            if (objState.currentPage > totalPages) objState.currentPage = totalPages;
+
+            var startIndex = (objState.currentPage - 1) * pageSize;
+            var endIndex = Math.min(startIndex + pageSize, total);
+            var pageData = objState.filteredData.slice(startIndex, endIndex);
+
+            document.getElementById("obj-page-info").innerText = total > 0 ? "Showing " + (startIndex + 1) + " - " + endIndex + " of " + total : "No matching files";
+
+            if (pageData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="15" style="text-align:center; padding: 25px; color: #888;">No files match the selected filters.</td></tr>';
+                renderObjPagination(totalPages);
+                return;
+            }
+
+            var rowsHtml = '';
+            var count = startIndex;
+            pageData.forEach(function(obj) {
+                count++;
+                var nloc = parseInt(obj.nloc);
+                var ccrp = parseFloat(obj.ccrp);
+                var line_cnt = parseInt(obj.line_cnt) || nloc;
+                var static_decls = parseInt(obj.static_decls) || 0;
+                var unreachable = parseInt(obj.unreachable_stmts) || 0;
+                var obj_nloc_class = nloc > th_nloc ? 'highlight-red' : 'highlight-green';
+                var obj_ccrp_class = ccrp < th_ccrp ? 'highlight-red' : 'highlight-green';
+                var line_class = line_cnt > th_file_lines ? 'highlight-red' : 'highlight-green';
+                var static_class = static_decls > th_static_decls ? 'highlight-red' : 'highlight-green';
+                var isViolation = (nloc > th_nloc || ccrp < th_ccrp || line_cnt > th_file_lines || static_decls > th_static_decls);
+                var statusBadge = isViolation ? '<span class="badge badge-fail">FAIL</span>' : '<span class="badge badge-pass">PASS</span>';
+
+                rowsHtml += "<tr>" +
+                                "<td>" + statusBadge + "</td>" +
+                                "<td>" + count + "</td>" +
+                                "<td><strong>" + escapeHtml(obj.filename) + "</strong></td>" +
+                                "<td class='" + line_class + "'>" + line_cnt + "</td>" +
+                                "<td class='" + static_class + "'>" + static_decls + "</td>" +
+                                "<td>" + unreachable + "</td>" +
+                                "<td class='" + obj_nloc_class + "'>" + obj.nloc + "</td>" +
+                                "<td>" + parseFloat(obj.anloc).toFixed(2) + "</td>" +
+                                "<td>" + obj.ccn + "</td>" +
+                                "<td>" + parseFloat(obj.accn).toFixed(2) + "</td>" +
+                                "<td>" + parseFloat(obj.tok).toFixed(2) + "</td>" +
+                                "<td>" + parseFloat(obj.atok).toFixed(2) + "</td>" +
+                                "<td>" + obj.ccnt + "</td>" +
+                                "<td class='" + obj_ccrp_class + "'>" + ccrp.toFixed(2) + "%</td>" +
+                            "</tr>";
+            });
+
+            tbody.innerHTML = rowsHtml;
+            renderObjPagination(totalPages);
+        }
+
+        function renderObjPagination(totalPages) {
+            var container = document.getElementById("obj-pagination");
+            container.innerHTML = "";
+            if (totalPages <= 1) return;
+
+            var prevBtn = document.createElement("button");
+            prevBtn.className = "page-btn" + (objState.currentPage === 1 ? " disabled" : "");
+            prevBtn.innerText = "◀ Prev";
+            prevBtn.onclick = function() {
+                if (objState.currentPage > 1) {
+                    objState.currentPage--;
+                    renderObjTable();
+                }
+            };
+            container.appendChild(prevBtn);
+
+            var pageSpan = document.createElement("span");
+            pageSpan.className = "page-indicator";
+            pageSpan.innerText = "Page " + objState.currentPage + " of " + totalPages;
+            container.appendChild(pageSpan);
+
+            var nextBtn = document.createElement("button");
+            nextBtn.className = "page-btn" + (objState.currentPage === totalPages ? " disabled" : "");
+            nextBtn.innerText = "Next ▶";
+            nextBtn.onclick = function() {
+                if (objState.currentPage < totalPages) {
+                    objState.currentPage++;
+                    renderObjTable();
+                }
+            };
+            container.appendChild(nextBtn);
+        }
+
+        // --- Controls & Event Handlers ---
+        function initTableControls() {
+            // Function Quick Filter Buttons
+            var funcFilterBtns = document.querySelectorAll('#func-filter-group .btn-filter');
+            funcFilterBtns.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    funcFilterBtns.forEach(function(b) { b.classList.remove('active'); });
+                    btn.classList.add('active');
+                    funcState.violationFilter = btn.getAttribute('data-filter');
+                    funcState.currentPage = 1;
+                    applyFuncFilters();
+                });
+            });
+
+            // Function Search Input
+            var funcSearch = document.getElementById('func-search-input');
+            funcSearch.addEventListener('input', function(e) {
+                funcState.searchTerm = e.target.value;
+                funcState.currentPage = 1;
+                applyFuncFilters();
+            });
+
+            // Function Page Size Selector
+            var funcPageSize = document.getElementById('func-page-size');
+            funcPageSize.addEventListener('change', function(e) {
+                funcState.pageSize = parseInt(e.target.value);
+                funcState.currentPage = 1;
+                renderFuncTable();
+            });
+
+            // Function Table Header Click to Sort
+            var funcHeaders = document.querySelectorAll('#func-table th[data-sort]');
+            funcHeaders.forEach(function(th) {
+                th.addEventListener('click', function() {
+                    var col = th.getAttribute('data-sort');
+                    if (funcState.sortColumn === col) {
+                        funcState.sortAsc = !funcState.sortAsc;
+                    } else {
+                        funcState.sortColumn = col;
+                        funcState.sortAsc = (col === 'name' || col === 'sline');
+                    }
+                    updateSortIndicators('func-table', col, funcState.sortAsc);
+                    applyFuncFilters();
+                });
+            });
+
+            // Files Quick Filter Buttons
+            var objFilterBtns = document.querySelectorAll('#obj-filter-group .btn-filter');
+            objFilterBtns.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    objFilterBtns.forEach(function(b) { b.classList.remove('active'); });
+                    btn.classList.add('active');
+                    objState.violationFilter = btn.getAttribute('data-filter');
+                    objState.currentPage = 1;
+                    applyObjFilters();
+                });
+            });
+
+            // Files Search Input
+            var objSearch = document.getElementById('obj-search-input');
+            objSearch.addEventListener('input', function(e) {
+                objState.searchTerm = e.target.value;
+                objState.currentPage = 1;
+                applyObjFilters();
+            });
+
+            // Files Page Size Selector
+            var objPageSize = document.getElementById('obj-page-size');
+            objPageSize.addEventListener('change', function(e) {
+                objState.pageSize = parseInt(e.target.value);
+                objState.currentPage = 1;
+                renderObjTable();
+            });
+
+            // Files Table Header Click to Sort
+            var objHeaders = document.querySelectorAll('#obj-table th[data-sort]');
+            objHeaders.forEach(function(th) {
+                th.addEventListener('click', function() {
+                    var col = th.getAttribute('data-sort');
+                    if (objState.sortColumn === col) {
+                        objState.sortAsc = !objState.sortAsc;
+                    } else {
+                        objState.sortColumn = col;
+                        objState.sortAsc = (col === 'filename');
+                    }
+                    updateSortIndicators('obj-table', col, objState.sortAsc);
+                    applyObjFilters();
+                });
+            });
+
+            // Set Initial Sort Arrows
+            updateSortIndicators('func-table', funcState.sortColumn, funcState.sortAsc);
+            updateSortIndicators('obj-table', objState.sortColumn, objState.sortAsc);
+        }
+
+        function updateSortIndicators(tableId, activeCol, isAsc) {
+            var headers = document.querySelectorAll('#' + tableId + ' th[data-sort]');
+            headers.forEach(function(th) {
+                var col = th.getAttribute('data-sort');
+                var indicator = th.querySelector('.sort-arrow');
+                if (!indicator) {
+                    indicator = document.createElement('span');
+                    indicator.className = 'sort-arrow';
+                    th.appendChild(indicator);
+                }
+                if (col === activeCol) {
+                    indicator.innerText = isAsc ? ' ▲' : ' ▼';
+                    th.classList.add('sorted');
+                } else {
+                    indicator.innerText = ' ⇅';
+                    th.classList.remove('sorted');
+                }
+            });
+        }
+
+        // --- CSV Exporters ---
+        function exportFuncCsv() {
+            var rows = [
+                ['Status', 'Start Line', 'Function Name', 'Function Name with Params', 'Params', 'Returns', 'Nesting Depth', 'STMT', 'VOCF', 'GOTO', 'Calls', 'Calling', 'Paths', 'Recursions', 'Dead Code', 'Call Depth', 'Tokens', 'NLOC', 'Comment Lines', 'Comment Ratio (%)', 'Cyclomatic Complexity']
+            ];
+            funcState.filteredData.forEach(function(f) {
+                var cc = parseInt(f.cc);
+                var nloc = parseInt(f.nloc);
+                var ccrp = parseFloat(f.ccrp);
+                var pcnt = parseInt(f.pcnt) || 0;
+                var ret_cnt = parseInt(f.ret_cnt) || 0;
+                var nesting = parseInt(f.nesting) || 0;
+                var stmt_cnt = parseInt(f.stmt_cnt) || 0;
+                var stmt_size = parseFloat(f.stmt_size) || 0.0;
+                var goto_cnt = parseInt(f.goto_cnt) || 0;
+                var calls_cnt = parseInt(f.calls_cnt) || 0;
+                var calling_cnt = parseInt(f.calling_cnt) || 0;
+                var path_cnt = parseInt(f.path_cnt) || 1;
+                var rec_cnt = parseInt(f.rec_cnt) || 0;
+                var dead_cnt = parseInt(f.dead_cnt) || 0;
+                var call_depth = parseInt(f.call_depth) || 1;
+                var status = (cc > th_cc || nloc > th_nloc || ccrp < th_ccrp || pcnt > th_param || ret_cnt > th_return || nesting > th_nesting || stmt_cnt > th_stmt || stmt_size > th_vocf || goto_cnt > th_goto || calls_cnt > th_calls || calling_cnt > th_calling || path_cnt > th_path || rec_cnt > th_rec || dead_cnt > th_dead || call_depth > th_call_depth) ? 'FAIL' : 'PASS';
+                rows.push([
+                    status,
+                    f.sline,
+                    '"' + (f.name || '').replace(/"/g, '""') + '"',
+                    '"' + (f.name_with_params || '').replace(/"/g, '""') + '"',
+                    pcnt,
+                    ret_cnt,
+                    nesting,
+                    stmt_cnt,
+                    stmt_size.toFixed(2),
+                    goto_cnt,
+                    calls_cnt,
+                    calling_cnt,
+                    path_cnt,
+                    rec_cnt,
+                    dead_cnt,
+                    call_depth,
+                    f.token,
+                    f.nloc,
+                    f.ccnt,
+                    ccrp.toFixed(2),
+                    f.cc
+                ]);
+            });
+            downloadCsv(rows, 'code_metrics_functions.csv');
+        }
+
+        function exportObjCsv() {
+            var rows = [
+                ['Status', 'File Name', 'Total Lines', 'Static Declarations', 'Unreachable Statements', 'NLOC', 'Avg NLOC', 'Cyclomatic Complexity', 'Avg CCN', 'Token Count', 'Avg Token', 'Comment Lines', 'Comment Ratio (%)']
+            ];
+            objState.filteredData.forEach(function(o) {
+                var nloc = parseInt(o.nloc);
+                var ccrp = parseFloat(o.ccrp);
+                var line_cnt = parseInt(o.line_cnt) || nloc;
+                var static_decls = parseInt(o.static_decls) || 0;
+                var unreachable = parseInt(o.unreachable_stmts) || 0;
+                var status = (nloc > th_nloc || ccrp < th_ccrp || line_cnt > th_file_lines || static_decls > th_static_decls) ? 'FAIL' : 'PASS';
+                rows.push([
+                    status,
+                    '"' + (o.filename || '').replace(/"/g, '""') + '"',
+                    line_cnt,
+                    static_decls,
+                    unreachable,
+                    o.nloc,
+                    parseFloat(o.anloc).toFixed(2),
+                    o.ccn,
+                    parseFloat(o.accn).toFixed(2),
+                    parseFloat(o.tok).toFixed(2),
+                    parseFloat(o.atok).toFixed(2),
+                    o.ccnt,
+                    ccrp.toFixed(2)
+                ]);
+            });
+            downloadCsv(rows, 'code_metrics_files.csv');
+        }
+
+        function downloadCsv(rows, filename) {
+            var csvContent = "data:text/csv;charset=utf-8," + rows.map(function(e) { return e.join(","); }).join("\n");
+            var encodedUri = encodeURI(csvContent);
+            var link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function copyGitHash() {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(git_hash).then(function() {
+                    showToast("Git Hash copied to clipboard!");
+                });
+            } else {
+                var temp = document.createElement("input");
+                document.body.appendChild(temp);
+                temp.value = git_hash;
+                temp.select();
+                document.execCommand("copy");
+                document.body.removeChild(temp);
+                showToast("Git Hash copied to clipboard!");
+            }
+        }
+
+        function showToast(msg) {
+            var toast = document.getElementById("toast");
+            toast.innerText = msg;
+            toast.className = "show";
+            setTimeout(function() { toast.className = toast.className.replace("show", ""); }, 2500);
+        }
+
+        function scrollToElement(id) {
+            var el = document.getElementById(id);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function scrollToChart(id, fallbackId) {
+            var el = document.getElementById(id);
+            if (el) {
+                var container = el.closest ? el.closest('.chart-container') : el;
+                if (!container) container = el;
+                container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                container.classList.remove('chart-highlight-pulse');
+                void container.offsetWidth;
+                container.classList.add('chart-highlight-pulse');
+                setTimeout(function() {
+                    container.classList.remove('chart-highlight-pulse');
+                }, 2200);
+            } else if (fallbackId) {
+                scrollToElement(fallbackId);
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+
+    <style>
+        :root {
+            --primary: #007bff;
+            --primary-dark: #0056b3;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --info: #17a2b8;
+            --bg-light: #f4f7f6;
+            --text-dark: #2c3e50;
+            --border-color: #dee2e6;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding-top: 65px;
+            background-color: var(--bg-light);
+            color: #333;
+            font-size: 13px;
+        }
+
+        /* --- Navbar --- */
+        #fixed-navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: #212529;
+            color: #ffffff;
+            padding: 12px 25px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-sizing: border-box;
+        }
+
+        .nav-brand {
+            font-weight: 700;
+            font-size: 1.1em;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .nav-links a {
+            color: #adb5bd;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .nav-links a:hover {
+            color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* --- Main Container --- */
+        .container {
+            width: 100%;
+            max-width: 1500px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 25px 35px;
+            box-sizing: border-box;
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+        }
+
+        /* --- Report Header & Meta Banner --- */
+        .report-header {
+            margin-bottom: 25px;
+            border-bottom: 2px solid #eaedf0;
+            padding-bottom: 15px;
+        }
+
+        .report-header h1 {
+            color: var(--text-dark);
+            margin: 0 0 10px 0;
+            font-size: 1.9em;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .meta-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 18px;
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 10px 16px;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .meta-item strong {
+            color: #495057;
+        }
+
+        .git-hash-badge {
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            background-color: #e9ecef;
+            color: #333;
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid #ced4da;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-copy {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px;
+            display: inline-flex;
+            align-items: center;
+            color: #6c757d;
+            border-radius: 3px;
+        }
+
+        .btn-copy:hover {
+            color: var(--primary);
+            background-color: #dee2e6;
+        }
+
+        /* --- Section Titles --- */
+        h3.section-title {
+            color: var(--text-dark);
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 8px;
+            margin-top: 30px;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 1.3em;
+        }
+
+        /* --- Dashboard Grid & Cards --- */
+        .dashboard-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 25px;
+        }
+
+        .metric-card {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+            padding: 14px;
+            flex: 1;
+            min-width: 170px;
+            text-align: center;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        }
+
+        .metric-card h4 {
+            margin: 0 0 6px 0;
+            color: #6c757d;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-card p {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 0;
+        }
+
+        .metric-card.card-violations p {
+            color: var(--danger);
+        }
+
+        .chart-container {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+            padding: 12px;
+            flex: 1;
+            min-width: 450px;
+            height: 380px;
+            box-sizing: border-box;
+        }
+
+        .chart-container-third {
+            min-width: 320px;
+        }
+
+        .metric-param-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 7px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .metric-param-link:hover {
+            color: var(--primary-dark);
+            background-color: #e8f4fd;
+            text-decoration: underline;
+        }
+
+        @keyframes chartPulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.6), 0 2px 6px rgba(0,0,0,0.04); border-color: #007bff; }
+            50% { box-shadow: 0 0 0 10px rgba(0, 123, 255, 0), 0 4px 14px rgba(0, 123, 255, 0.25); border-color: #0056b3; }
+            100% { box-shadow: 0 2px 6px rgba(0,0,0,0.04); border-color: #e2e8f0; }
+        }
+
+        .chart-highlight-pulse {
+            animation: chartPulse 2s ease-out;
+        }
+
+        .offline-notice {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #856404;
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 6px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        /* --- Filter Toolbar --- */
+        .table-toolbar {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px 8px 0 0;
+            padding: 12px 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .search-input {
+            padding: 6px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 12px;
+            min-width: 220px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+        }
+
+        .btn-filter {
+            background-color: #ffffff;
+            border: 1px solid #ced4da;
+            padding: 5px 11px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            color: #495057;
+            font-weight: 500;
+            transition: all 0.15s;
+        }
+
+        .btn-filter:hover {
+            background-color: #e9ecef;
+            border-color: #adb5bd;
+        }
+
+        .btn-filter.active {
+            background-color: var(--primary);
+            color: #ffffff;
+            border-color: var(--primary-dark);
+        }
+
+        .btn-export {
+            background-color: #28a745;
+            color: #ffffff;
+            border: 1px solid #218838;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-export:hover {
+            background-color: #218838;
+        }
+
+        /* --- Active Filter Banner --- */
+        .active-filter-banner {
+            background-color: #e8f4fd;
+            border: 1px solid #b8daff;
+            color: #004085;
+            padding: 8px 14px;
+            margin: 0;
+            border-top: none;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+
+        .btn-clear-filter {
+            background-color: #ffffff;
+            border: 1px solid #b8daff;
+            color: #004085;
+            border-radius: 3px;
+            padding: 3px 8px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .btn-clear-filter:hover {
+            background-color: #004085;
+            color: #ffffff;
+        }
+
+        /* --- Tables --- */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            background-color: #ffffff;
+            border: 1px solid #e9ecef;
+            border-top: none;
+            margin-bottom: 0;
+        }
+
+        .bordered_table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .bordered_table th {
+            background-color: #2c3e50;
+            color: #ffffff;
+            padding: 9px 10px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .bordered_table th[data-sort] {
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+
+        .bordered_table th[data-sort]:hover {
+            background-color: #3e5871;
+        }
+
+        .bordered_table th.sorted {
+            background-color: #1a252f;
+        }
+
+        .bordered_table td {
+            border-bottom: 1px solid #dee2e6;
+            padding: 8px 10px;
+            vertical-align: middle;
+        }
+
+        .bordered_table tbody tr:nth-child(even) {
+            background-color: #fcfcfc;
+        }
+
+        .bordered_table tbody tr:hover {
+            background-color: #f1f7fe;
+        }
+
+        .mono-font {
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 11px;
+            color: #495057;
+        }
+
+        /* --- Badges & Highlights --- */
+        .badge {
+            padding: 3px 7px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            display: inline-block;
+        }
+
+        .badge-pass {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .badge-fail {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .highlight-green {
+            background-color: #eafaf1 !important;
+            color: #155724;
+            font-weight: 600;
+        }
+
+        .highlight-amber {
+            background-color: #fff9e6 !important;
+            color: #856404;
+            font-weight: 600;
+        }
+
+        .highlight-red {
+            background-color: #fdedee !important;
+            color: #721c24;
+            font-weight: 700;
+        }
+
+        /* --- Table Footer & Pagination --- */
+        .table-footer {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            font-size: 12px;
+        }
+
+        .pagination-container {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .page-btn {
+            background-color: #ffffff;
+            border: 1px solid #ced4da;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .page-btn:hover:not(.disabled) {
+            background-color: #e9ecef;
+        }
+
+        .page-btn.disabled {
+            color: #adb5bd;
+            cursor: not-allowed;
+            border-color: #e9ecef;
+        }
+
+        .page-indicator {
+            font-weight: 600;
+            padding: 0 8px;
+            color: #495057;
+        }
+
+        /* --- Limits Table --- */
+        .limits-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 25px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            overflow: hidden;
+            font-size: 12px;
+        }
+
+        .limits-table th {
+            background-color: #495057;
+            color: #ffffff;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .limits-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .limits-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* --- Toast Notification --- */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 4px;
+            padding: 12px;
+            position: fixed;
+            z-index: 9999;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 13px;
+        }
+
+        #toast.show {
+            visibility: visible;
+            animation: fadein 0.4s, fadeout 0.4s 2.1s;
+        }
+
+        @keyframes fadein {
+            from {bottom: 10px; opacity: 0;}
+            to {bottom: 30px; opacity: 1;}
+        }
+
+        @keyframes fadeout {
+            from {bottom: 30px; opacity: 1;}
+            to {bottom: 10px; opacity: 0;}
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Fixed Navigation Bar -->
+    <div id="fixed-navbar">
+        <div class="nav-brand">
+            <span>📊</span>
+            <span>Code Metrics Report</span>
+        </div>
+        <div class="nav-links">
+            <a href="#limits_start">Thresholds</a>
+            <a href="#dashboard-start">Dashboard</a>
+            <a href="#func_tbl_start">Functions Stats</a>
+            <a href="#obj_tbl_start">Files Stats</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Report Header with Build Date & Git Hash -->
+        <div class="report-header">
+            <h1>Code Quality & Architecture Metrics</h1>
+            <div class="meta-bar">
+                <div class="meta-item">
+                    <span>🕒</span>
+                    <span><strong>Build Date:</strong> 2026-10-06 10:32:17</span>
+                </div>
+                <div class="meta-item">
+                    <span>🔖</span>
+                    <span><strong>Git Hash:</strong></span>
+                    <span class="git-hash-badge">
+                        <span>c030bd6af1ebf95ac43a847b975a51574f5be25e</span>
+                        <button class="btn-copy" onclick="copyGitHash()" title="Copy Git Hash">📋</button>
+                    </span>
+                </div>
+                <div class="meta-item">
+                    <span>🎯</span>
+                    <span><strong>Threshold Profile:</strong> ASPICE 4.0 SWE.4 Standards</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Limits / Thresholds Section -->
+        <h3 id="limits_start" class="section-title">Threshold Limits (ASPICE 4.0 SWE.4 / HIS Metrics)</h3>
+        <table class="limits-table">
+            <thead>
+                <tr>
+                    <th style="width: 250px;">HIS / ASPICE Metric</th>
+                    <th style="width: 140px;">Standard Threshold</th>
+                    <th>SWE.4 Quality Gate Rule</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Analysability -->
+                <tr style="background-color: #f8f9fa;"><td colspan="3" style="font-weight: 700; color: #1a252f; border-bottom: 2px solid #ced4da;">Analysability</td></tr>
+                <tr>
+                    <td>
+                        
+                        <a href="#complexity-distribution-chart" class="metric-param-link" onclick="scrollToChart('complexity-distribution-chart', 'func_tbl_start'); return false;" title="Click to view Cyclomatic Complexity Distribution chart">📊 Cyclomatic Complexity (CC / <i>v(G)</i>)</a>
+                        
+                    </td>
+                    <td><strong>&le; 20</strong></td>
+                    <td>Functions with CC &gt; 20 exceed decision path threshold and require refactoring into smaller units</td>
+                </tr>
+                <tr>
+                    <td><a href="#func_tbl_start" class="metric-param-link" onclick="scrollToElement('func_tbl_start'); document.querySelector('#func-filter-group [data-filter=\'vocf\']').click(); return false;" title="Click to filter Average Statement Size violations">📊 Average Statement Size (VOCF)</a></td>
+                    <td><strong>&le; 9.0</strong></td>
+                    <td>Token-to-statement ratio (Tokens / STMT) &gt; 9.0 indicates overly complex multi-operation statements</td>
+                </tr>
+                <tr>
+                    <td>
+                        
+                        <a href="#statements-distribution-chart" class="metric-param-link" onclick="scrollToChart('statements-distribution-chart', 'func_tbl_start'); return false;" title="Click to view Executable Statements Distribution chart">📊 Executable Statements (STMT)</a>
+                        
+                    </td>
+                    <td><strong>&le; 50</strong></td>
+                    <td>Functions containing &gt; 50 executable statements fail single responsibility and analysability rules</td>
+                </tr>
+                <tr>
+                    <td><a href="#func_tbl_start" class="metric-param-link" onclick="scrollToElement('func_tbl_start'); document.querySelector('#func-filter-group [data-filter=\'call_depth\']').click(); return false;" title="Click to filter Call Graph Depth violations">📊 Call Graph Depth (CALL_DEPTH)</a></td>
+                    <td><strong>&le; 6</strong></td>
+                    <td>Call hierarchy depth exceeding 6 increases stack frame consumption and call graph complexity</td>
+                </tr>
+                <tr>
+                    <td><a href="#obj_tbl_start" class="metric-param-link" onclick="scrollToElement('obj_tbl_start'); document.querySelector('#obj-filter-group [data-filter=\'static_decls\']').click(); return false;" title="Click to filter Static Declarations violations">📊 Static Declarations in File (STATIC_DECLS)</a></td>
+                    <td><strong>&le; 20</strong></td>
+                    <td>Files declaring &gt; 20 static identifiers represent excessive file scope encapsulation and cohesion issues</td>
+                </tr>
+
+                <!-- Changeability -->
+                <tr style="background-color: #f8f9fa;"><td colspan="3" style="font-weight: 700; color: #1a252f; border-bottom: 2px solid #ced4da;">Changeability</td></tr>
+                <tr>
+                    <td><a href="#func_tbl_start" class="metric-param-link" onclick="scrollToElement('func_tbl_start'); document.querySelector('#func-filter-group [data-filter=\'goto\']').click(); return false;" title="Click to filter GOTO violations">📊 Number of GOTO Statements (GOTO)</a></td>
+                    <td><strong>= 0</strong></td>
+                    <td>Any use of unstructured <code>goto</code> jumps breaks control flow integrity and violates MISRA / HIS standards</td>
+                </tr>
+
+                <!-- Stability -->
+                <tr style="background-color: #f8f9fa;"><td colspan="3" style="font-weight: 700; color: #1a252f; border-bottom: 2px solid #ced4da;">Stability</td></tr>
+                <tr>
+                    <td>
+                        
+                        <a href="#returns-distribution-chart" class="metric-param-link" onclick="scrollToChart('returns-distribution-chart', 'func_tbl_start'); return false;" title="Click to view Return Points Distribution chart">📊 Return Points / Exits (RETURN)</a>
+                        
+                    </td>
+                    <td><strong>&le; 1</strong></td>
+                    <td>Functions with &gt; 1 exit points violate single exit point architecture and impair resource cleanup tracking</td>
+                </tr>
+                <tr>
+                    <td><a href="#func_tbl_start" class="metric-param-link" onclick="scrollToElement('func_tbl_start'); document.querySelector('#func-filter-group [data-filter=\'calling\']').click(); return false;" title="Click to filter Calling Functions violations">📊 Calling Functions / Fan-In (CALLING)</a></td>
+                    <td><strong>&le; 10</strong></td>
+                    <td>Functions called by &gt; 10 distinct callers across the codebase represent high change-propagation coupling</td>
+                </tr>
+                <tr>
+                    <td>
+                        
+                        <a href="#paths-distribution-chart" class="metric-param-link" onclick="scrollToChart('paths-distribution-chart', 'func_tbl_start'); return false;" title="Click to view Static Execution Paths chart">📊 Execution Paths (PATH / NPATH)</a>
+                        
+                    </td>
+                    <td><strong>&le; 1000</strong></td>
+                    <td>Static acyclic path count &gt; 1000 makes complete branch coverage verification mathematically intractable</td>
+                </tr>
+                <tr>
+                    <td>
+                        
+                        <a href="#params-distribution-chart" class="metric-param-link" onclick="scrollToChart('params-distribution-chart', 'func_tbl_start'); return false;" title="Click to view Parameter Count Distribution chart">📊 Transfer Parameters (PARAM)</a>
+                        
+                    </td>
+                    <td><strong>&le; 5</strong></td>
+                    <td>Signatures exceeding 5 arguments complicate caller interfaces and stack frame validation</td>
+                </tr>
+                <tr>
+                    <td><a href="#func_tbl_start" class="metric-param-link" onclick="scrollToElement('func_tbl_start'); document.querySelector('#func-filter-group [data-filter=\'rec\']').click(); return false;" title="Click to filter Recursion violations">📊 Recursions / Call Cycles (REC)</a></td>
+                    <td><strong>= 0</strong></td>
+                    <td>Direct or mutual recursions violate static stack bounds guarantees required in automotive software</td>
+                </tr>
+                <tr>
+                    <td><a href="#func_tbl_start" class="metric-param-link" onclick="scrollToElement('func_tbl_start'); document.querySelector('#func-filter-group [data-filter=\'dead\']').click(); return false;" title="Click to filter Dead Code violations">📊 Unused / Dead Statements (DEAD)</a></td>
+                    <td><strong>= 0</strong></td>
+                    <td>Unreachable statements detected after unconditional jump/exit points violate MISRA C Rule 2.1</td>
+                </tr>
+
+                <!-- Testability -->
+                <tr style="background-color: #f8f9fa;"><td colspan="3" style="font-weight: 700; color: #1a252f; border-bottom: 2px solid #ced4da;">Testability</td></tr>
+                <tr>
+                    <td>
+                        
+                        <a href="#calls-distribution-chart" class="metric-param-link" onclick="scrollToChart('calls-distribution-chart', 'func_tbl_start'); return false;" title="Click to view Called Functions Distribution chart">📊 Called Functions / Fan-Out (CALLS)</a>
+                        
+                    </td>
+                    <td><strong>&le; 7</strong></td>
+                    <td>Invoking &gt; 7 external subroutines indicates excessive dependency footprint and hurts unit testability</td>
+                </tr>
+                <tr>
+                    <td>
+                        
+                        <a href="#nesting-distribution-chart" class="metric-param-link" onclick="scrollToChart('nesting-distribution-chart', 'func_tbl_start'); return false;" title="Click to view Control Nesting Depth chart">📊 Control Nesting Depth (LEVEL)</a>
+                        
+                    </td>
+                    <td><strong>&le; 4</strong></td>
+                    <td>Control structure nesting exceeding 4 levels requires decomposition or guard clauses</td>
+                </tr>
+
+                <!-- General Code Sizing & Documentation -->
+                <tr style="background-color: #f8f9fa;"><td colspan="3" style="font-weight: 700; color: #1a252f; border-bottom: 2px solid #ced4da;">General Code Sizing & Documentation</td></tr>
+                <tr>
+                    <td>
+                        
+                        <a href="#nloc-distribution-chart" class="metric-param-link" onclick="scrollToChart('nloc-distribution-chart', 'obj_tbl_start'); return false;" title="Click to view Lines of Code (NLOC) chart">📊 Lines of Code Without Comments (NLOC)</a>
+                        
+                    </td>
+                    <td><strong>&le; 200</strong></td>
+                    <td>Files or functions exceeding 200 effective non-comment lines require architectural modularization</td>
+                </tr>
+                <tr>
+                    <td><a href="#obj_tbl_start" class="metric-param-link" onclick="scrollToElement('obj_tbl_start'); document.querySelector('#obj-filter-group [data-filter=\'line_cnt\']').click(); return false;" title="Click to filter Total File Lines violations">📊 Number of Lines in a File (FILE_LINES)</a></td>
+                    <td><strong>&le; 1200</strong></td>
+                    <td>Source files containing &gt; 1200 total lines require architectural decomposition into separate translation units</td>
+                </tr>
+                <tr>
+                    <td>
+                        
+                        <a href="#comment-ratio-distribution-chart" class="metric-param-link" onclick="scrollToChart('comment-ratio-distribution-chart', 'obj_tbl_start'); return false;" title="Click to view Comment Ratio Distribution chart">📊 Minimum Comment Ratio (CCRP)</a>
+                        
+                    </td>
+                    <td><strong>&ge; 10%</strong></td>
+                    <td>Source code documentation ratio must meet or exceed 10% to ensure maintainability</td>
+                </tr>
+            </tbody>
+        </table>
+
+
+        <!-- Metrics Cards Dashboard -->
+        <h3 id="dashboard-start" class="section-title">Metrics Dashboard</h3>
+        <div class="dashboard-section">
+            <div class="metric-card" onclick="scrollToElement('func_tbl_start')" style="cursor:pointer;" title="Click to view functions">
+                <h4>Total Functions</h4>
+                <p id="total-functions">0</p>
+            </div>
+            <div class="metric-card" onclick="scrollToElement('obj_tbl_start')" style="cursor:pointer;" title="Click to view files">
+                <h4>Total Files</h4>
+                <p id="total-files">0</p>
+            </div>
+            <div class="metric-card" onclick="scrollToChart('complexity-distribution-chart', 'func_tbl_start')" style="cursor:pointer;" title="Click to view Cyclomatic Complexity">
+                <h4>Avg. Cyclomatic Complexity</h4>
+                <p id="avg-complexity">0.00</p>
+            </div>
+            <div class="metric-card" onclick="scrollToChart('comment-ratio-distribution-chart', 'obj_tbl_start')" style="cursor:pointer;" title="Click to view Comment Ratio">
+                <h4>Overall Comment Ratio</h4>
+                <p id="overall-comment-ratio">0.00%</p>
+            </div>
+            <div class="metric-card" onclick="scrollToChart('nloc-distribution-chart', 'obj_tbl_start')" style="cursor:pointer;" title="Click to view Lines of Code">
+                <h4>Total Lines of Code (NLOC)</h4>
+                <p id="total-nloc">0</p>
+            </div>
+            <div class="metric-card card-violations" onclick="scrollToElement('func_tbl_start'); document.querySelector('#func-filter-group [data-filter=\'violations\']').click();" style="cursor:pointer;" title="Click to filter violations">
+                <h4>Total Threshold Violations</h4>
+                <p id="total-violations">0</p>
+            </div>
+        </div>
+
+        <!-- Charts Dashboard -->
+        
+        <div class="dashboard-section">
+            <div class="chart-container">
+                <div id="complexity-distribution-chart" style="width:100%; height:100%;"></div>
+            </div>
+            <div class="chart-container">
+                <div id="top-complex-functions-chart" style="width:100%; height:100%;"></div>
+            </div>
+        </div>
+        
+
+        
+        <div class="dashboard-section">
+            <div class="chart-container">
+                <div id="nloc-distribution-chart" style="width:100%; height:100%;"></div>
+            </div>
+            <div class="chart-container">
+                <div id="top-nloc-functions-chart" style="width:100%; height:100%;"></div>
+            </div>
+        </div>
+        
+
+        
+        <div class="dashboard-section">
+            <div class="chart-container">
+                <div id="comment-ratio-distribution-chart" style="width:100%; height:100%;"></div>
+            </div>
+            <div class="chart-container">
+                <div id="top-comment-ratio-functions-chart" style="width:100%; height:100%;"></div>
+            </div>
+        </div>
+        
+
+        
+        <div class="dashboard-section">
+            <div class="chart-container">
+                <div id="params-distribution-chart" style="width:100%; height:100%;"></div>
+            </div>
+            <div class="chart-container">
+                <div id="top-params-functions-chart" style="width:100%; height:100%;"></div>
+            </div>
+        </div>
+        
+
+        
+        <div class="dashboard-section">
+            <div class="chart-container">
+                <div id="returns-distribution-chart" style="width:100%; height:100%;"></div>
+            </div>
+            <div class="chart-container">
+                <div id="top-returns-functions-chart" style="width:100%; height:100%;"></div>
+            </div>
+        </div>
+        
+
+        
+        <div class="dashboard-section">
+            <div class="chart-container">
+                <div id="nesting-distribution-chart" style="width:100%; height:100%;"></div>
+            </div>
+            <div class="chart-container">
+                <div id="top-nesting-functions-chart" style="width:100%; height:100%;"></div>
+            </div>
+        </div>
+        
+
+        
+        <div class="dashboard-section">
+            <div class="chart-container">
+                <div id="statements-distribution-chart" style="width:100%; height:100%;"></div>
+            </div>
+            <div class="chart-container">
+                <div id="top-stmt-functions-chart" style="width:100%; height:100%;"></div>
+            </div>
+        </div>
+        
+
+        
+        <div class="dashboard-section">
+            <div class="chart-container">
+                <div id="calls-distribution-chart" style="width:100%; height:100%;"></div>
+            </div>
+            <div class="chart-container">
+                <div id="top-calls-functions-chart" style="width:100%; height:100%;"></div>
+            </div>
+        </div>
+        
+
+        
+        <div class="dashboard-section">
+            <div class="chart-container">
+                <div id="paths-distribution-chart" style="width:100%; height:100%;"></div>
+            </div>
+            <div class="chart-container">
+                <div id="top-paths-functions-chart" style="width:100%; height:100%;"></div>
+            </div>
+        </div>
+        
+
+        <!-- Functions Stats Table & Controls -->
+        <h3 id="func_tbl_start" class="section-title">
+            <span>Functions Statistics</span>
+            <span id="func-total-count" style="font-size: 12px; font-weight: normal; color: #6c757d;"></span>
+        </h3>
+
+        <!-- Functions Filter Toolbar -->
+        <div class="table-toolbar">
+            <div class="toolbar-group">
+                <input type="text" id="func-search-input" class="search-input" placeholder="🔍 Search function name, params, line...">
+                <div id="func-filter-group" class="toolbar-group">
+                    <button class="btn-filter active" data-filter="all">All</button>
+                    <button class="btn-filter" data-filter="violations" title="Show functions failing any threshold">⚠️ All Violations</button>
+                    <button class="btn-filter" data-filter="cc" title="Show CC > 20">🔴 CC &gt; 20</button>
+                    <button class="btn-filter" data-filter="stmt" title="Show STMT > 50">🔴 STMT &gt; 50</button>
+                    <button class="btn-filter" data-filter="vocf" title="Show VOCF > 9.0">🔴 VOCF &gt; 9.0</button>
+                    <button class="btn-filter" data-filter="goto" title="Show GOTO > 0">🔴 GOTO &gt; 0</button>
+                    <button class="btn-filter" data-filter="calls" title="Show CALLS > 7">🔴 CALLS &gt; 7</button>
+                    <button class="btn-filter" data-filter="calling" title="Show CALLING > 10">🔴 CALLING &gt; 10</button>
+                    <button class="btn-filter" data-filter="path" title="Show PATH > 1000">🔴 PATH &gt; 1000</button>
+                    <button class="btn-filter" data-filter="rec" title="Show REC > 0">🔴 REC &gt; 0</button>
+                    <button class="btn-filter" data-filter="dead" title="Show DEAD > 0">🔴 DEAD &gt; 0</button>
+                    <button class="btn-filter" data-filter="call_depth" title="Show Call Depth > 6">🔴 Depth &gt; 6</button>
+                    <button class="btn-filter" data-filter="param" title="Show Params > 5">🔴 Params &gt; 5</button>
+                    <button class="btn-filter" data-filter="return" title="Show Returns > 1">🔴 Returns &gt; 1</button>
+                    <button class="btn-filter" data-filter="nesting" title="Show Nesting > 4">🔴 Nesting &gt; 4</button>
+                    <button class="btn-filter" data-filter="nloc" title="Show NLOC > 200">🔴 NLOC &gt; 200</button>
+                    <button class="btn-filter" data-filter="ccrp" title="Show Comment Ratio < 10%">🔴 Ratio &lt; 10%</button>
+                    <button class="btn-filter" data-filter="passed">🟢 All Passed</button>
+                </div>
+            </div>
+            <div class="toolbar-group">
+                <label for="func-page-size" style="color:#6c757d; font-size:12px;">Rows:</label>
+                <select id="func-page-size" style="padding:4px 8px; border:1px solid #ced4da; border-radius:4px; font-size:12px;">
+                    <option value="25">25</option>
+                    <option value="50" selected>50</option>
+                    <option value="100">100</option>
+                    <option value="999999">All</option>
+                </select>
+                <button class="btn-export" onclick="exportFuncCsv()">📥 Export CSV</button>
+            </div>
+        </div>
+
+        <!-- Active Filter Banner for Functions -->
+        <div id="func-active-filter-banner" class="active-filter-banner">
+            <span id="func-active-filter-text"></span>
+            <button class="btn-clear-filter" onclick="clearFuncChartFilter()">✕ Clear Chart Filter</button>
+        </div>
+
+        <div class="table-responsive">
+            <table class="bordered_table" id="func-table">
+                <thead>
+                    <tr>
+                        <th style="width: 55px;">Status</th>
+                        <th data-sort="sline" style="width: 65px;">Start Line</th>
+                        <th data-sort="name" style="width: 160px;">Function Name</th>
+                        <th data-sort="name_with_params">Signature / Parameters</th>
+                        <th data-sort="pcnt" style="width: 55px;" title="Transfer Parameters (HIS_PARAM)">Params</th>
+                        <th data-sort="ret_cnt" style="width: 55px;" title="Return Points (HIS_RETURN)">Returns</th>
+                        <th data-sort="nesting" style="width: 55px;" title="Nesting Depth (HIS_LEVEL)">Nesting</th>
+                        <th data-sort="stmt_cnt" style="width: 55px;" title="Executable Statements (HIS_STMT)">STMT</th>
+                        <th data-sort="stmt_size" style="width: 55px;" title="Average Statement Size (Tokens/STMT, HIS_VOCF)">VOCF</th>
+                        <th data-sort="goto_cnt" style="width: 50px;" title="GOTO Statements (HIS_GOTO)">GOTO</th>
+                        <th data-sort="calls_cnt" style="width: 55px;" title="Called Functions / Fan-Out (HIS_CALLS)">Calls</th>
+                        <th data-sort="calling_cnt" style="width: 55px;" title="Calling Functions / Fan-In (HIS_CALLING)">Calling</th>
+                        <th data-sort="path_cnt" style="width: 60px;" title="Static Execution Paths (HIS_PATH)">Paths</th>
+                        <th data-sort="rec_cnt" style="width: 45px;" title="Recursion / Cycles (HIS_REC)">Rec</th>
+                        <th data-sort="dead_cnt" style="width: 50px;" title="Dead Code Statements">Dead</th>
+                        <th data-sort="call_depth" style="width: 55px;" title="Call Graph Depth (HIS_DEPTH)">Depth</th>
+                        <th data-sort="token" style="width: 60px;">Tokens</th>
+                        <th data-sort="nloc" style="width: 60px;">NLOC</th>
+                        <th data-sort="ccnt" style="width: 60px;">Comments</th>
+                        <th data-sort="ccrp" style="width: 70px;">Ratio (%)</th>
+                        <th data-sort="cc" style="width: 55px;">Complexity</th>
+                    </tr>
+                </thead>
+                <tbody id="func_data_body"></tbody>
+            </table>
+        </div>
+
+        <!-- Functions Table Footer -->
+        <div class="table-footer">
+            <span id="func-page-info">Showing 0 - 0 of 0</span>
+            <div id="func-pagination" class="pagination-container"></div>
+        </div>
+
+        <!-- Files Stats Table & Controls -->
+        <h3 id="obj_tbl_start" class="section-title">
+            <span>Files Statistics</span>
+            <span id="obj-total-count" style="font-size: 12px; font-weight: normal; color: #6c757d;"></span>
+        </h3>
+
+        <!-- Files Filter Toolbar -->
+        <div class="table-toolbar">
+            <div class="toolbar-group">
+                <input type="text" id="obj-search-input" class="search-input" placeholder="🔍 Search file name...">
+                <div id="obj-filter-group" class="toolbar-group">
+                    <button class="btn-filter active" data-filter="all">All</button>
+                    <button class="btn-filter" data-filter="violations" title="Show files failing any threshold">⚠️ All Violations</button>
+                    <button class="btn-filter" data-filter="line_cnt" title="Show Lines > 1200">🔴 Lines &gt; 1200</button>
+                    <button class="btn-filter" data-filter="static_decls" title="Show Static Decls > 20">🔴 Static Decls &gt; 20</button>
+                    <button class="btn-filter" data-filter="nloc" title="Show NLOC > 200">🔴 NLOC &gt; 200</button>
+                    <button class="btn-filter" data-filter="ccrp" title="Show Comment Ratio < 10%">🔴 Ratio &lt; 10%</button>
+                    <button class="btn-filter" data-filter="passed">🟢 All Passed</button>
+                </div>
+            </div>
+            <div class="toolbar-group">
+                <label for="obj-page-size" style="color:#6c757d; font-size:12px;">Rows:</label>
+                <select id="obj-page-size" style="padding:4px 8px; border:1px solid #ced4da; border-radius:4px; font-size:12px;">
+                    <option value="25">25</option>
+                    <option value="50" selected>50</option>
+                    <option value="100">100</option>
+                    <option value="999999">All</option>
+                </select>
+                <button class="btn-export" onclick="exportObjCsv()">📥 Export CSV</button>
+            </div>
+        </div>
+
+        <!-- Active Filter Banner for Files -->
+        <div id="obj-active-filter-banner" class="active-filter-banner">
+            <span id="obj-active-filter-text"></span>
+            <button class="btn-clear-filter" onclick="clearObjChartFilter()">✕ Clear Audit Filter</button>
+        </div>
+
+        <div class="table-responsive">
+            <table class="bordered_table" id="obj-table">
+                <thead>
+                    <tr>
+                        <th style="width: 55px;">Status</th>
+                        <th style="width: 50px;">Crt.</th>
+                        <th data-sort="filename">File Name</th>
+                        <th data-sort="line_cnt" style="width: 80px;" title="Total Lines in File (HIS_LINE)">Lines</th>
+                        <th data-sort="static_decls" style="width: 85px;" title="Static Declarations in File (HIS_STATIC)">Static Decls</th>
+                        <th data-sort="unreachable_stmts" style="width: 90px;" title="Unreachable Statements in File">Unreachable</th>
+                        <th data-sort="nloc" style="width: 85px;">NLOC</th>
+                        <th data-sort="anloc" style="width: 90px;">Avg NLOC</th>
+                        <th data-sort="ccn" style="width: 75px;">Total CC</th>
+                        <th data-sort="accn" style="width: 85px;">Avg CC</th>
+                        <th data-sort="tok" style="width: 75px;">Tokens</th>
+                        <th data-sort="atok" style="width: 85px;">Avg Tokens</th>
+                        <th data-sort="ccnt" style="width: 85px;">Comments</th>
+                        <th data-sort="ccrp" style="width: 95px;">Ratio (%)</th>
+                    </tr>
+                </thead>
+                <tbody id="object_data_body"></tbody>
+            </table>
+        </div>
+
+        <!-- Files Table Footer -->
+        <div class="table-footer">
+            <span id="obj-page-info">Showing 0 - 0 of 0</span>
+            <div id="obj-pagination" class="pagination-container"></div>
+        </div>
+    </div>
+
+    <!-- Toast Popup for Clipboard -->
+    <div id="toast">Copied!</div>
+
+</body>
+</html>
