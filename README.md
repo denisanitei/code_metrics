@@ -33,7 +33,7 @@
       min_comment_ratio: 10
       min_file_comment_ratio: 10
       stmt_threshold: 50
-      vocf_threshold: 9.0
+      vocf_threshold: 4.0
       
       # HIS Control Flow & Architecture Thresholds
       param_threshold: 5
@@ -69,7 +69,7 @@ All parameters are specified as child keys under the `code_metrics` section of t
 | `return_threshold` | `int` | `1` | HIS `RET` / stability | Maximum allowed return points per function (MISRA C single exit point compliance). |
 | `nesting_depth_threshold` | `int` | `4` | HIS `LEVEL` / testability | Maximum control structure nesting depth (`if`, `for`, `while`, `switch`). OEM limit: `<= 7`. |
 | `stmt_threshold` | `int` | `50` | HIS `STMT` / analysability | Maximum executable statements per function body. |
-| `vocf_threshold` | `float` | `9.0` | HIS `VOCF` / analysability | Maximum average statement size (tokens per statement / vocabulary frequency). |
+| `vocf_threshold` | `float` | `4.0` | HIS `VOCF` / analysability | Maximum allowed HIS Language Scope / Vocabulary Frequency per function, calculated as $\frac{N_1 + N_2}{n_1 + n_2}$ (total lexical tokens divided by distinct lexical tokens). |
 | `goto_threshold` | `int` | `0` | HIS `GOTO` / changeability | Maximum allowed `goto` jump statements per function (MISRA C Rule 15.1 forbids `goto`). |
 | `calling_threshold` | `int` | `10` | HIS `CALLING` / Fan-In | Maximum number of different functions calling this function across the build. Measures architectural coupling. |
 | `calls_threshold` | `int` | `7` | HIS `CALLS` / Fan-Out | Maximum distinct functions called by this function. Measures unit test isolation complexity. |
@@ -95,7 +95,7 @@ The tool enforces metrics derived from the **Hersteller Initiative Software (HIS
 | **`RET`** | Number of Return Points | $\text{RET} = 1$ | Function | Deterministic exit point, easy resource cleanup |
 | **`LEVEL`** | Max Nesting Depth | $1 \le \text{LEVEL} \le 4$ (OEM: $\le 7$) | Function | Comprehensibility and unit test path coverage |
 | **`STMT`** | Executable Statements | $1 \le \text{STMT} \le 50$ | Function | Single responsibility principle |
-| **`VOCF`** | Vocabulary Frequency | $1.0 \le \text{VOCF} \le 9.0$ | Function | Simple statement phrasing |
+| **`VOCF`** | Language Scope (Vocabulary Frequency) | $1.0 \le \text{VOCF} \le 4.0$ | Function | Low token repetition, maintainable function scope |
 | **`GOTO`** | GOTO Statements | $\text{GOTO} = 0$ | Function | Structured programming compliance |
 | **`CALLING`** | Fan-In (Callers) | $0 \le \text{CALLING} \le 10$ | Function | Modular dependency management |
 | **`CALLS`** | Fan-Out (Callees) | $0 \le \text{CALLS} \le 7$ | Function | Encapsulation and reduced ripple effects |

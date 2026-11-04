@@ -1155,10 +1155,10 @@
             return generateMetricBins(th);
         }
 
-        // Float Metric Bins (e.g. Average Statement Size VOCF)
+        // Float Metric Bins (e.g. Language Scope / Vocabulary Frequency VOCF)
         function generateFloatBins(th) {
             var bins = [];
-            th = parseFloat(th) || 9.0;
+            th = parseFloat(th) || 4.0;
             var step = th / 5.0;
             for (var i = 0; i < 5; i++) {
                 var startVal = i * step;
@@ -2774,7 +2774,7 @@
             topCallDepthChart.draw(data, options);
         }
 
-        // --- Average Statement Size (VOCF) Distribution Chart ---
+        // --- Language Scope / Vocabulary Frequency (VOCF) Distribution Chart ---
         function drawVocfDistributionChart() {
             if (!chartsLoaded) return;
 
@@ -2799,7 +2799,7 @@
             });
 
             var data = new google.visualization.DataTable();
-            data.addColumn('string', 'Statement Size');
+            data.addColumn('string', 'Language Scope (VOCF)');
             data.addColumn('number', 'Functions');
             data.addColumn({type: 'string', role: 'style'});
             data.addColumn({type: 'string', role: 'annotation'});
@@ -2815,8 +2815,8 @@
             formatGoogleChart(data, 1, false);
 
             var options = getDistributionChartOptions(
-                'Average Statement Size Distribution (≤ ' + th_vocf + ' Pass 🟢, > ' + th_vocf + ' Fail 🔴)',
-                'Tokens / Statement (VOCF Ranges)'
+                'Language Scope / Vocabulary Frequency Distribution (≤ ' + th_vocf + ' Pass 🟢, > ' + th_vocf + ' Fail 🔴)',
+                'Language Scope (HIS_VOCF = (N1 + N2) / (n1 + n2))'
             );
 
             var container = document.getElementById('vocf-distribution-chart');
@@ -2838,7 +2838,7 @@
             vocfChart.draw(data, options);
         }
 
-        // --- Top Functions by Average Statement Size (VOCF) Chart ---
+        // --- Top Functions by Language Scope / Vocabulary Frequency (VOCF) Chart ---
         function drawTopVocfFunctionsChart() {
             if (!chartsLoaded) return;
 
@@ -2848,7 +2848,7 @@
             var topN = 10;
             top10VocfData = sortedFuncs.slice(0, Math.min(topN, sortedFuncs.length));
 
-            var chartData = [['Function Name', 'Avg Statement Size', { role: 'style' }, { role: 'annotation' }]];
+            var chartData = [['Function Name', 'Language Scope (VOCF)', { role: 'style' }, { role: 'annotation' }]];
             top10VocfData.forEach(function(f) {
                 var size = parseFloat(f.stmt_size) || 0;
                 var barColor = size > th_vocf ? COLOR_FAIL : COLOR_PASS;
@@ -2859,8 +2859,8 @@
             formatGoogleChart(data, 1, true);
 
             var options = getTopChartOptions(
-                'Top 10 Functions by Average Statement Size (≤ ' + th_vocf + ' Pass 🟢, > ' + th_vocf + ' Fail 🔴)',
-                'Tokens / Statement (HIS_VOCF)'
+                'Top 10 Functions by Language Scope / VOCF (≤ ' + th_vocf + ' Pass 🟢, > ' + th_vocf + ' Fail 🔴)',
+                'Language Scope (HIS_VOCF)'
             );
 
             var container = document.getElementById('top-vocf-functions-chart');
@@ -5463,9 +5463,9 @@
                 {% endif %}
                 {% if HAS_VOCF is defined and HAS_VOCF %}
                 <tr>
-                    <td><a href="#vocf-distribution-chart" class="metric-param-link" onclick="scrollToChart('vocf-distribution-chart', 'func_tbl_start'); return false;" title="Click to view Average Statement Size Distribution chart">📊 Average Statement Size (VOCF)</a></td>
+                    <td><a href="#vocf-distribution-chart" class="metric-param-link" onclick="scrollToChart('vocf-distribution-chart', 'func_tbl_start'); return false;" title="Click to view Language Scope / Vocabulary Frequency Distribution chart">📊 Language Scope / Vocabulary Frequency (VOCF)</a></td>
                     <td><strong>&le; {{TH_VOCF}}</strong></td>
-                    <td>Token-to-statement ratio (Tokens / STMT) &gt; {{TH_VOCF}} indicates overly complex multi-operation statements</td>
+                    <td>HIS Language Scope <code>(N1 + N2) / (n1 + n2)</code> &gt; {{TH_VOCF}} indicates excessive token repetition and overly large function scope</td>
                     <td class="range-bar-cell" id="range-bar-vocf"></td>
                 </tr>
                 {% endif %}
@@ -5695,22 +5695,22 @@
 
         {% if HAS_VOCF is defined and HAS_VOCF %}
         <div class="dashboard-section">
-            <div class="chart-container" title="SWE.4 Quality Gate Rule: Token-to-statement ratio (Tokens / STMT) > {{TH_VOCF}} indicates overly complex multi-operation statements">
-                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: Token-to-statement ratio (Tokens / STMT) > {{TH_VOCF}} indicates overly complex multi-operation statements">
+            <div class="chart-container" title="SWE.4 Quality Gate Rule: HIS Language Scope (N1 + N2) / (n1 + n2) > {{TH_VOCF}} indicates excessive token repetition and overly large function scope">
+                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: HIS Language Scope (N1 + N2) / (n1 + n2) > {{TH_VOCF}} indicates excessive token repetition and overly large function scope">
                     <span>🛡️ SWE.4 Rule</span>
                     <div class="tooltip-box">
                         <strong>SWE.4 Quality Gate Rule</strong>
-                        Token-to-statement ratio (Tokens / STMT) &gt; {{TH_VOCF}} indicates overly complex multi-operation statements
+                        HIS Language Scope <code>(N1 + N2) / (n1 + n2)</code> &gt; {{TH_VOCF}} indicates excessive token repetition and overly large function scope
                     </div>
                 </div>
                 <div id="vocf-distribution-chart" style="width:100%; height:100%;"></div>
             </div>
-            <div class="chart-container" title="SWE.4 Quality Gate Rule: Token-to-statement ratio (Tokens / STMT) > {{TH_VOCF}} indicates overly complex multi-operation statements">
-                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: Token-to-statement ratio (Tokens / STMT) > {{TH_VOCF}} indicates overly complex multi-operation statements">
+            <div class="chart-container" title="SWE.4 Quality Gate Rule: HIS Language Scope (N1 + N2) / (n1 + n2) > {{TH_VOCF}} indicates excessive token repetition and overly large function scope">
+                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: HIS Language Scope (N1 + N2) / (n1 + n2) > {{TH_VOCF}} indicates excessive token repetition and overly large function scope">
                     <span>🛡️ SWE.4 Rule</span>
                     <div class="tooltip-box">
                         <strong>SWE.4 Quality Gate Rule</strong>
-                        Token-to-statement ratio (Tokens / STMT) &gt; {{TH_VOCF}} indicates overly complex multi-operation statements
+                        HIS Language Scope <code>(N1 + N2) / (n1 + n2)</code> &gt; {{TH_VOCF}} indicates excessive token repetition and overly large function scope
                     </div>
                 </div>
                 <div id="top-vocf-functions-chart" style="width:100%; height:100%;"></div>
@@ -6293,7 +6293,7 @@
                         <th data-sort="ret_cnt" style="width: 55px;" title="Return Points (HIS_RETURN)">Returns</th>
                         <th data-sort="nesting" style="width: 55px;" title="Nesting Depth (HIS_LEVEL)">Nesting</th>
                         <th data-sort="stmt_cnt" style="width: 55px;" title="Executable Statements (HIS_STMT)">STMT</th>
-                        <th data-sort="stmt_size" style="width: 55px;" title="Average Statement Size (Tokens/STMT, HIS_VOCF)">VOCF</th>
+                        <th data-sort="stmt_size" style="width: 55px;" title="Language Scope / Vocabulary Frequency (HIS_VOCF = (N1 + N2) / (n1 + n2))">VOCF</th>
                         <th data-sort="goto_cnt" style="width: 50px;" title="GOTO Statements (HIS_GOTO)">GOTO</th>
                         <th data-sort="calls_cnt" style="width: 55px;" title="Called Functions / Fan-Out (HIS_CALLS)">Calls</th>
                         <th data-sort="calling_cnt" style="width: 55px;" title="Calling Functions / Fan-In (HIS_CALLING)">Calling</th>

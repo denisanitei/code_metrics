@@ -61,8 +61,8 @@ NESTING_DEPTH_THRESHOLD = 4
 # maximum executable statements per function (his analysability)
 STMT_THRESHOLD = 50
 
-# maximum average statement size (his analysability vocf)
-VOCF_THRESHOLD = 9.0
+# maximum language scope / vocabulary frequency (his analysability vocf)
+VOCF_THRESHOLD = 4.0
 
 # maximum goto statements (his changeability)
 GOTO_THRESHOLD = 0
@@ -763,7 +763,7 @@ def process_cc(self):
         pass
 
     if 'vocf_threshold' in yaml_opts:
-        Logs.pprint("CYAN", "Maximum Avg Statement Size: %s" % VOCF_THRESHOLD)
+        Logs.pprint("CYAN", "Maximum Language Scope (VOCF): %s" % VOCF_THRESHOLD)
     else:
         # vocf threshold not configured
         pass
@@ -1023,7 +1023,8 @@ class cc_xml2html(Task):
                 _return_count   = int(_func.find("return_count").text) if _func.find("return_count") is not None else 0
                 _max_nesting    = int(_func.find("max_nesting_depth").text) if _func.find("max_nesting_depth") is not None else 0
                 _stmt_cnt       = int(_func.find("statement_count").text) if _func.find("statement_count") is not None else 0
-                _stmt_size      = float(_func.find("average_statement_size").text) if _func.find("average_statement_size") is not None else 0.0
+                _vocf_el        = _func.find("vocf") if _func.find("vocf") is not None else _func.find("average_statement_size")
+                _stmt_size      = float(_vocf_el.text) if _vocf_el is not None else 0.0
                 _goto_cnt       = int(_func.find("goto_count").text) if _func.find("goto_count") is not None else 0
                 _calls_cnt      = int(_func.find("called_count").text) if _func.find("called_count") is not None else 0
                 _calling_cnt    = int(_func.find("calling_functions_count").text) if _func.find("calling_functions_count") is not None else 0
@@ -1065,6 +1066,7 @@ class cc_xml2html(Task):
                             'ret_cnt'           : _return_count,
                             'nesting'           : _max_nesting,
                             'stmt_cnt'          : _stmt_cnt,
+                            'vocf'              : "%.2f" % (float(_stmt_size),),
                             'stmt_size'         : "%.2f" % (float(_stmt_size),),
                             'goto_cnt'          : _goto_cnt,
                             'calls_cnt'         : _calls_cnt,
@@ -1345,6 +1347,7 @@ class cc_xml2junit(Task):
                 else:
                     _com_ratio = (float(_com_cnt) / float(_com_denom)) * 100.0
 
+                _vocf_el      = _func.find("vocf") if _func.find("vocf") is not None else _func.find("average_statement_size")
                 _func_item    = {
                     "name"       : _func_name,
                     "rel_path"   : _rel_file,
@@ -1353,7 +1356,7 @@ class cc_xml2junit(Task):
                     "nloc"       : _nloc_val,
                     "sloc"       : int(_func.find("sloc").text) if _func.find("sloc") is not None else 0,
                     "eloc"       : int(_func.find("eloc").text) if _func.find("eloc") is not None else 0,
-                    "vocf"       : float(_func.find("average_statement_size").text) if _func.find("average_statement_size") is not None else 0.0,
+                    "vocf"       : float(_vocf_el.text) if _vocf_el is not None else 0.0,
                     "stmt"       : int(_func.find("statement_count").text) if _func.find("statement_count") is not None else 0,
                     "nesting"    : int(_func.find("max_nesting_depth").text) if _func.find("max_nesting_depth") is not None else 0,
                     "calling"    : int(_func.find("calling_functions_count").text) if _func.find("calling_functions_count") is not None else 0,
@@ -1414,7 +1417,7 @@ class cc_xml2junit(Task):
                 "data_items" : _funcs_data
             },
             {
-                "suite_name" : "Average Statement Size (VOCF)",
+                "suite_name" : "Language Scope / Vocabulary Frequency (VOCF)",
                 "is_active"  : (_yaml_opts.get('vocf_threshold') is not None) if _opts_present else True,
                 "metric_key" : "vocf",
                 "threshold"  : _th_vocf,

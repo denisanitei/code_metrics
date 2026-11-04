@@ -91,6 +91,7 @@ class FunctionInfo(object):
         self.path_count               = 1
         self.recursion_count          = 0
         self.dead_code_count          = 0
+        self.vocf                     = 0.0
         self.average_statement_size   = 0.0
         self.call_depth               = 1
         self.if_without_else_count    = 0
@@ -171,12 +172,14 @@ class FunctionInfo(object):
     def add_unused_variable(self):
         self.unused_variables_count += 1
 
+    def set_vocf(self, value):
+        _val                        = round(float(value), 2) if value > 0.0 else 0.0
+        self.vocf                   = _val
+        self.average_statement_size = _val
+
     def finalize_metrics(self):
-        self.called_count = len(self._called_functions)
-        if self.statement_count > 0:
-            self.average_statement_size = round(float(self.token_count) / float(self.statement_count), 2)
-        else:
-            self.average_statement_size = float(self.token_count)
+        self.called_count           = len(self._called_functions)
+        self.average_statement_size = self.vocf
         self.update_cdrp()
 
     def update_nesting_depth(self, depth):
@@ -1811,6 +1814,205 @@ def compute_his_stmt(func_tokens):
     return _total if _total >= 0 else 0
 
 
+_C_VOCF_TOK_PATTERN = re.compile(
+    r'<<=|>>=|->\*|\.\.\.|==|!=|<=|>=|&&|\|\||\+\+|--|<<|>>|'
+    r'\+=|-=|\*=|/=|%=|&=|\|=|\^=|->|\.\*|::|##|\w+|[^\s]'
+)
+
+
+def _flatten_pp_for_vocf(norm_tokens):
+    _out = []
+    for _item in norm_tokens:
+        if isinstance(_item, tuple) and len(_item) == 2 and _item[0] == '#PP_BRANCHES':
+            _best_branch = []
+            for _br in _item[1]:
+                _flat_br = _flatten_pp_for_vocf(_br)
+                if len(_flat_br) > len(_best_branch):
+                    _best_branch = _flat_br
+            _out.extend(_best_branch)
+        elif isinstance(_item, str) and not _item.startswith('#'):
+            _out.append(_item)
+    return _out
+
+
+def _has_unclosed_float_exponent(num_tok):
+    if not num_tok:
+        return False
+    _low = num_tok.lower()
+    if _low.startswith('0x'):
+        return len(num_tok) > 2 and num_tok[-1] in ('p', 'P')
+    return (num_tok[0].isdigit() or (num_tok[0] == '.' and len(num_tok) > 1 and num_tok[1].isdigit())) and num_tok[-1] in ('e', 'E')
+
+
+def _lex_c_tokens_for_vocf(raw_tokens):
+    _split = []
+    for _tok in raw_tokens:
+        if not _tok:
+            continue
+        if _tok[0] in ('"', "'"):
+            _split.append(_tok)
+        elif _tok.startswith('/*') or _tok.startswith('//') or _tok.startswith('#'):
+            continue
+        else:
+            _split.extend(_C_VOCF_TOK_PATTERN.findall(_tok))
+
+    _merged = []
+    _n      = len(_split)
+    _i      = 0
+    while _i < _n:
+        _t = _split[_i]
+        # String/character encoding prefix: L"...", u"...", U"...", u8"..."
+        if _t in ('L', 'u', 'U', 'u8') and (_i + 1) < _n and _split[_i + 1][0] in ('"', "'"):
+            _merged.append(_t + _split[_i + 1])
+            _i += 2
+            continue
+        # Variadic ellipsis '...'
+        if _t == '.' and (_i + 2) < _n and _split[_i + 1] == '.' and _split[_i + 2] == '.':
+            _merged.append('...')
+            _i += 3
+            continue
+        # Right-shift operators '>>=' and '>>' split by hfcca's '|>' rule
+        if _t == '>' and (_i + 1) < _n:
+            if _split[_i + 1] == '>=':
+                _merged.append('>>=')
+                _i += 2
+                continue
+            if _split[_i + 1] == '>':
+                _merged.append('>>')
+                _i += 2
+                continue
+        # Floating-point literals: digits + '.' (+ frac) or '.' + digits
+        if _t[0].isdigit() and (_i + 1) < _n and _split[_i + 1] == '.':
+            if (_i + 2) < _n and (_split[_i + 2][0].isalnum() or _split[_i + 2][0] == '_'):
+                _num = _t + '.' + _split[_i + 2]
+                _i  += 3
+            else:
+                _num = _t + '.'
+                _i  += 2
+            if _has_unclosed_float_exponent(_num) and (_i + 1) < _n and _split[_i] in ('+', '-') and _split[_i + 1][0].isdigit():
+                _num = _num + _split[_i] + _split[_i + 1]
+                _i  += 2
+            _merged.append(_num)
+            continue
+        if _t == '.' and (_i + 1) < _n and _split[_i + 1][0].isdigit():
+            _num = '.' + _split[_i + 1]
+            _i  += 2
+            if _has_unclosed_float_exponent(_num) and (_i + 1) < _n and _split[_i] in ('+', '-') and _split[_i + 1][0].isdigit():
+                _num = _num + _split[_i] + _split[_i + 1]
+                _i  += 2
+            _merged.append(_num)
+            continue
+        # Integer mantissa with scientific exponent, e.g. 1e-5 or 0x1p+2
+        if _has_unclosed_float_exponent(_t) and (_i + 2) < _n and _split[_i + 1] in ('+', '-') and _split[_i + 2][0].isdigit():
+            _merged.append(_t + _split[_i + 1] + _split[_i + 2])
+            _i += 3
+            continue
+        _merged.append(_t)
+        _i += 1
+    return _merged
+
+
+def _strip_compiler_attributes(tokens):
+    _out = []
+    _n   = len(tokens)
+    _i   = 0
+    while _i < _n:
+        if tokens[_i] in ('__attribute__', '__attribute', '__declspec') and (_i + 1) < _n and tokens[_i + 1] == '(':
+            _depth = 1
+            _j     = _i + 2
+            while _j < _n and _depth > 0:
+                if tokens[_j] == '(':
+                    _depth += 1
+                elif tokens[_j] == ')':
+                    _depth -= 1
+                _j += 1
+            if _depth == 0:
+                _i = _j
+                continue
+        _out.append(tokens[_i])
+        _i += 1
+    return _out
+
+
+_AUTOSAR_VOCF_MACROS_2 = frozenset(['FUNC', 'CONST', 'VAR'])
+_AUTOSAR_VOCF_MACROS_3 = frozenset([
+    'FUNC_P2CONST', 'FUNC_P2VAR',
+    'P2VAR', 'P2CONST', 'CONSTP2VAR', 'CONSTP2CONST',
+    'P2FUNC', 'CONSTP2FUNC',
+])
+
+
+def _expand_autosar_macros(tokens):
+    _out = []
+    _n   = len(tokens)
+    _i   = 0
+    while _i < _n:
+        _tok = tokens[_i]
+        if (_tok in _AUTOSAR_VOCF_MACROS_2 or _tok in _AUTOSAR_VOCF_MACROS_3) and (_i + 1) < _n and tokens[_i + 1] == '(':
+            _depth = 1
+            _j     = _i + 2
+            _args  = [[]]
+            while _j < _n and _depth > 0:
+                _cur = tokens[_j]
+                if _cur == '(':
+                    _depth += 1
+                    _args[-1].append(_cur)
+                elif _cur == ')':
+                    _depth -= 1
+                    if _depth > 0:
+                        _args[-1].append(_cur)
+                elif _cur == ',' and _depth == 1:
+                    _args.append([])
+                else:
+                    _args[-1].append(_cur)
+                _j += 1
+            if _depth == 0:
+                _exp_args = [_expand_autosar_macros(_a) for _a in _args]
+                if _tok in _AUTOSAR_VOCF_MACROS_2 and len(_exp_args) == 2:
+                    if _tok == 'CONST':
+                        _out.extend(['const'] + _exp_args[0])
+                    else:
+                        _out.extend(_exp_args[0])
+                    _i = _j
+                    continue
+                if _tok in _AUTOSAR_VOCF_MACROS_3 and len(_exp_args) == 3:
+                    if _tok in ('FUNC_P2CONST', 'P2CONST'):
+                        _out.extend(['const'] + _exp_args[0] + ['*'])
+                    elif _tok in ('FUNC_P2VAR', 'P2VAR'):
+                        _out.extend(_exp_args[0] + ['*'])
+                    elif _tok == 'CONSTP2VAR':
+                        _out.extend(_exp_args[0] + ['*', 'const'])
+                    elif _tok == 'CONSTP2CONST':
+                        _out.extend(['const'] + _exp_args[0] + ['*', 'const'])
+                    elif _tok == 'P2FUNC':
+                        _out.extend(_exp_args[0] + ['(', '*'] + _exp_args[2] + [')'])
+                    elif _tok == 'CONSTP2FUNC':
+                        _out.extend(_exp_args[0] + ['(', '*', 'const'] + _exp_args[2] + [')'])
+                    _i = _j
+                    continue
+        _out.append(_tok)
+        _i += 1
+    return _out
+
+
+def compute_his_vocf(header_tokens, body_tokens):
+    ''' Compute true HIS VOCF (Sprachumfang / Language Scope):
+        VOCF = (N1 + N2) / (n1 + n2)
+        where N1 + N2 is total C/C++ lexical tokens in the function definition
+        and n1 + n2 is the count of distinct lexical tokens in the function definition.
+    '''
+    _flat_body = _flatten_pp_for_vocf(_normalize_pp_blocks(body_tokens or []))
+    _raw_all   = list(header_tokens or []) + ['{'] + _flat_body + ['}']
+    _lexed     = _lex_c_tokens_for_vocf(_raw_all)
+    _clean     = _expand_autosar_macros(_strip_compiler_attributes(_lexed))
+    if not _clean:
+        return 0.0
+    _unique_cnt = len(set(_clean))
+    if _unique_cnt <= 0:
+        return 0.0
+    return round(float(len(_clean)) / float(_unique_cnt), 2)
+
+
 def _count_non_empty_comment_lines(text):
     _cnt = 0
     for _line in text.split('\n'):
@@ -1877,6 +2079,8 @@ class UniversalAnalyzer(list):
         self.for_paren              = 0
         self.jump_active            = False
         self.func_body_tokens       = []
+        self.decl_prefix_tokens     = []
+        self.func_header_tokens     = []
         self.in_pp_line             = False
         self.in_function_body       = False
         self.in_decl_prefix         = False
@@ -1921,6 +2125,10 @@ class UniversalAnalyzer(list):
     def BEGIN_DECL_PREFIX(self, line):
         self._check_decl_prefix_start(line)
 
+    def DECL_PREFIX_TOKENS(self, tokens):
+        if tokens:
+            self.decl_prefix_tokens.extend(tokens)
+
     def FLUSH_PENDING_COMMENTS(self, _unused=None):
         if self.pending_comment_lines > 0 or self.sig_comment_lines > 0:
             self.comment_count += self.pending_comment_lines + self.sig_comment_lines
@@ -1928,7 +2136,8 @@ class UniversalAnalyzer(list):
             self.sig_comment_lines     = 0
             self.pending_comment_end   = -1
             self.pending_is_doxygen    = False
-        self.in_decl_prefix = False
+        self.in_decl_prefix     = False
+        self.decl_prefix_tokens = []
 
     def FLUSH_GLOBAL_TERM(self, line):
         self.at_top_of_file = False
@@ -1946,10 +2155,12 @@ class UniversalAnalyzer(list):
         self.comment_count += _count_non_empty_comment_lines(text)
 
     def ENTER_FUNCTION_BODY(self, _unused=None):
-        self.at_top_of_file   = False
-        self.in_function_body = True
-        self.in_decl_prefix   = False
-        _header_comments      = self.pending_comment_lines + self.sig_comment_lines
+        self.at_top_of_file        = False
+        self.in_function_body      = True
+        self.in_decl_prefix        = False
+        self.func_header_tokens    = list(self.decl_prefix_tokens)
+        self.decl_prefix_tokens    = []
+        _header_comments           = self.pending_comment_lines + self.sig_comment_lines
         self.pending_comment_lines = 0
         self.sig_comment_lines     = 0
         self.pending_comment_end   = -1
@@ -1961,8 +2172,15 @@ class UniversalAnalyzer(list):
         self.FLUSH_PENDING_COMMENTS(None)
         self.START_NEW_FUNCTION(name_and_line)
 
+    def AFTER_DEC_START_NEW_FUNCTION(self, name_and_line):
+        if name_and_line[0] != ')' and not any(_t in ('__attribute__', '__attribute', '__declspec') for _t in self.decl_prefix_tokens):
+            self.decl_prefix_tokens = []
+        self.START_NEW_FUNCTION(name_and_line)
+
     def START_NEW_FUNCTION(self, name_and_line):
         self._check_decl_prefix_start(name_and_line[1])
+        if name_and_line[0]:
+            self.decl_prefix_tokens.append(name_and_line[0])
         self.current_function       = FunctionInfo(*name_and_line)
         self.nesting_depth          = 0
         self.prev_token             = None
@@ -1979,6 +2197,7 @@ class UniversalAnalyzer(list):
         self.for_paren              = 0
         self.jump_active            = False
         self.func_body_tokens       = []
+        self.func_header_tokens     = []
         self.in_pp_line             = False
 
     def CONDITION(self, token):
@@ -2256,10 +2475,25 @@ class UniversalAnalyzer(list):
         self.in_pp_line = False
 
     def ADD_TO_LONG_FUNCTION_NAME(self, app):
-        self.current_function.add_to_long_name(app)
+        if self.current_function is not None:
+            self.current_function.add_to_long_name(app)
+        if not self.in_function_body:
+            _tok = app.strip()
+            if _tok:
+                self.decl_prefix_tokens.append(_tok)
 
     def ADD_TO_FUNCTION_NAME(self, app):
-        self.current_function.add_to_function_name(app)
+        if self.current_function is not None:
+            self.current_function.add_to_function_name(app)
+        if not self.in_function_body:
+            _tok = app.strip()
+            if _tok.startswith('::'):
+                self.decl_prefix_tokens.append('::')
+                _rest = _tok[2:].strip()
+                if _rest:
+                    self.decl_prefix_tokens.append(_rest)
+            elif _tok:
+                self.decl_prefix_tokens.append(_tok)
 
     def PARAMETER(self, token):
         self.current_function.add_parameter(token)
@@ -2291,13 +2525,16 @@ class UniversalAnalyzer(list):
                             pass
                     _finished_fun.set_path_count(compute_his_path(self.func_body_tokens))
                     _finished_fun.set_statement_count(compute_his_stmt(self.func_body_tokens))
+                    _finished_fun.set_vocf(compute_his_vocf(self.func_header_tokens, self.func_body_tokens))
                     _finished_fun.finalize_metrics()
                     self.last_finished_function = _finished_fun
                     self.last_func_end_line     = text if isinstance(text, int) else -1
                 else:
                     # no function object
                     pass
-                self.current_function = None
+                self.decl_prefix_tokens = []
+                self.func_header_tokens = []
+                self.current_function   = None
                 yield _finished_fun
             else:
                 code(self, text)
@@ -2359,6 +2596,9 @@ class CTokenTranslator(TokenTranslatorBase):
         self.br_count              = 0
         self.last_preprocessor     = None
         self._macro_bracket_level  = 0
+        self._macro_name           = ""
+        self._macro_arg0_tokens    = []
+        self._macro_arg_idx        = 0
         self._dec_end_line         = -1
 
     def _is_condition(self, token):
@@ -2379,8 +2619,11 @@ class CTokenTranslator(TokenTranslatorBase):
     def _GLOBAL(self, token):
         _result = None
         if self._is_func_macro(token):
-            self._state = self._FUNC_MACRO_WAIT_OPEN
-            _result = (UniversalAnalyzer.BEGIN_DECL_PREFIX, self._current_line)
+            self._macro_name          = token
+            self._macro_arg0_tokens   = []
+            self._macro_arg_idx       = 0
+            self._state               = self._FUNC_MACRO_WAIT_OPEN
+            _result                   = (UniversalAnalyzer.BEGIN_DECL_PREFIX, self._current_line)
         elif token == '(':
             if self.bracket_level == 0:
                 pass
@@ -2420,19 +2663,31 @@ class CTokenTranslator(TokenTranslatorBase):
 
     def _FUNC_MACRO_ARGS(self, token):
         _result = None
-        if token in ('(', '<'):
+        if token.startswith('/*') or token.startswith('//'):
+            _result = self._make_comment(token)
+        elif token in ('(', '<'):
+            if self._macro_arg_idx == 0:
+                self._macro_arg0_tokens.append(token)
             self._macro_bracket_level += 1
         elif token in (')', '>'):
             self._macro_bracket_level -= 1
             if self._macro_bracket_level == 0:
                 self._state = self._GLOBAL
-            else:
-                # still nested inside macro brackets
-                pass
-        elif token.startswith('/*') or token.startswith('//'):
-            _result = self._make_comment(token)
+                if self._macro_name == 'FUNC_P2CONST':
+                    _exp_toks = ['const'] + list(self._macro_arg0_tokens) + ['*']
+                elif self._macro_name == 'FUNC_P2VAR':
+                    _exp_toks = list(self._macro_arg0_tokens) + ['*']
+                else:
+                    _exp_toks = list(self._macro_arg0_tokens)
+                _result = (UniversalAnalyzer.DECL_PREFIX_TOKENS, _exp_toks)
+            elif self._macro_arg_idx == 0:
+                self._macro_arg0_tokens.append(token)
+        elif token == ',' and self._macro_bracket_level == 1:
+            self._macro_arg_idx += 1
+        elif self._macro_arg_idx == 0:
+            self._macro_arg0_tokens.append(token)
         else:
-            # argument token within macro definition
+            # non-return-type macro argument token
             pass
         return _result
 
@@ -2480,7 +2735,7 @@ class CTokenTranslator(TokenTranslatorBase):
             if self._current_line > self._dec_end_line + 1:
                 return UniversalAnalyzer.RESET_AND_START_NEW_FUNCTION, (token, self._current_line)
             else:
-                return UniversalAnalyzer.START_NEW_FUNCTION, (token, self._current_line)
+                return UniversalAnalyzer.AFTER_DEC_START_NEW_FUNCTION, (token, self._current_line)
 
     def _IMP(self, token):
         if token in ("#else", "#if", "#endif"):
