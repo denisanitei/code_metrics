@@ -568,6 +568,27 @@
             });
             var overallCommentRatio = (totalNLOC + totalComments) > 0 ? ((totalComments / (totalNLOC + totalComments)) * 100).toFixed(2) : '0';
 
+            var sumPassed = 0;
+            var sumFailed = 0;
+            getThresholdMetricConfigs().forEach(function(cfg) {
+                if (!cfg.hasMetric) return;
+                var cell = document.getElementById(cfg.id);
+                if (!cell) return;
+                var dataList = cfg.scope === 'func' ? func_data : obj_data;
+                if (dataList.length === 0) return;
+                dataList.forEach(function(item) {
+                    var val = cfg.getValue(item);
+                    var passed = cfg.isLowerLimit ? (val >= cfg.threshold) : (val <= cfg.threshold);
+                    if (passed) {
+                        sumPassed++;
+                    } else {
+                        sumFailed++;
+                    }
+                });
+            });
+            var totalPassFail = sumPassed + sumFailed;
+            var overallCompliancePct = totalPassFail > 0 ? ((sumPassed / totalPassFail) * 100).toFixed(2) : '0.00';
+
             document.getElementById('total-functions').innerText = formatInt(totalFunctions);
             document.getElementById('total-files').innerText = formatInt(totalFiles);
             document.getElementById('avg-complexity').innerText = formatFloat(avgCC, 2);
@@ -578,6 +599,13 @@
             var elocEl = document.getElementById('total-eloc');
             if (elocEl) elocEl.innerText = formatInt(totalELOC);
             document.getElementById('total-violations').innerText = formatInt(funcViolations + fileViolations);
+            var compEl = document.getElementById('overall-compliance');
+            if (compEl) compEl.innerText = formatFloat(overallCompliancePct, 2) + '%';
+            var compCardEl = document.getElementById('card-overall-compliance');
+            if (compCardEl && totalPassFail > 0) {
+                compCardEl.title = formatInt(sumPassed) + ' passed / ' + formatInt(totalPassFail) +
+                    ' total (' + formatFloat(overallCompliancePct, 2) + '%) - Click to view Threshold Limits';
+            }
         }
 
         // --- Threshold Range Bar / Bullet Graph Functions ---
@@ -621,8 +649,8 @@
             }
         }
 
-        function initThresholdRangeBars() {
-            var metricConfigs = [
+        function getThresholdMetricConfigs() {
+            return [
                 {
                     id: 'range-bar-cc',
                     hasMetric: has_cc,
@@ -855,6 +883,10 @@
                     unitName: 'files'
                 }
             ];
+        }
+
+        function initThresholdRangeBars() {
+            var metricConfigs = getThresholdMetricConfigs();
 
             metricConfigs.forEach(function(cfg) {
                 if (!cfg.hasMetric) return;
@@ -4793,6 +4825,10 @@
             color: var(--danger);
         }
 
+        .metric-card.card-compliance p {
+            color: #059669;
+        }
+
         .chart-container {
             position: relative;
             background-color: #ffffff;
@@ -5492,6 +5528,10 @@
             <div class="metric-card card-violations" onclick="scrollToElement('func_tbl_start'); document.querySelector('#func-filter-group [data-filter=\'violations\']').click();" style="cursor:pointer;" title="Click to filter violations">
                 <h4>Total Threshold Violations</h4>
                 <p id="total-violations">0</p>
+            </div>
+            <div class="metric-card card-compliance" id="card-overall-compliance" onclick="scrollToElement('limits_start')" style="cursor:pointer;" title="Click to view Threshold Limits compliance">
+                <h4>Overall Compliance</h4>
+                <p id="overall-compliance">0.00%</p>
             </div>
         </div>
 
