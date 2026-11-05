@@ -94,12 +94,50 @@ STATIC_DECLS_THRESHOLD = 20
 # maximum if statements without else branch (misra c rule 15.7)
 IF_WITHOUT_ELSE_THRESHOLD = 0
 
+_THRESHOLD_YAML_KEYS = (
+    'cc_threshold',
+    'nloc_threshold',
+    'sloc_threshold',
+    'eloc_threshold',
+    'min_comment_ratio',
+    'min_file_comment_ratio',
+    'param_threshold',
+    'return_threshold',
+    'nesting_depth_threshold',
+    'stmt_threshold',
+    'vocf_threshold',
+    'goto_threshold',
+    'calling_threshold',
+    'calls_threshold',
+    'path_threshold',
+    'rec_threshold',
+    'unreachable_statements_threshold',
+    'dead_code_threshold',
+    'call_depth_threshold',
+    'file_lines_threshold',
+    'static_declarations_threshold',
+    'if_without_else_threshold',
+)
+
+
+def _has_configured_thresholds(yaml_opts):
+    if not yaml_opts:
+        return False
+    return any(yaml_opts.get(_key) is not None for _key in _THRESHOLD_YAML_KEYS)
+
+
+def _get_opt(yaml_opts, key, default):
+    _val = yaml_opts.get(key) if yaml_opts else None
+    return _val if _val is not None else default
+
+
 """*************************************************************************************************
 ****************************************************************************************************
 *************************************************************************************************"""
 def nodes2paths(mixed_nodes):
-    # convert mixed nodes or paths to canonical case-sensitive paths on disk
+    # convert mixed nodes or paths to canonical case-sensitive paths on disk (deduplicated)
     _paths = []
+    _seen  = set()
     for _node in mixed_nodes:
         try:
             _raw_path = _node.abspath()
@@ -109,7 +147,9 @@ def nodes2paths(mixed_nodes):
             _resolved_path = str(Path(_raw_path).resolve())
         except Exception:
             _resolved_path = _raw_path
-        _paths.append(_resolved_path)
+        if _resolved_path not in _seen:
+            _seen.add(_resolved_path)
+            _paths.append(_resolved_path)
     return _paths
 
 """*************************************************************************************************
@@ -931,6 +971,11 @@ class cc_xml2html(Task):
                 self.m.update(_fh.read())
         except Exception:
             pass
+        try:
+            _opts = getattr(self, 'yaml_opts', None) or {}
+            self.m.update(dumps(_opts, sort_keys=True, default=str).encode('utf-8'))
+        except Exception:
+            pass
 
     def run(self):
         _html_path      = self.outputs[0].abspath()
@@ -995,23 +1040,29 @@ class cc_xml2html(Task):
             # default server resolved
             pass
 
-        _branch     = get_git_branch(_project_path)
-        _build_date = get_git_commit_date(_project_path)
-        _git_hash   = get_git_commit_hash(_project_path)
+        _branch         = get_git_branch(_project_path)
+        _build_date     = get_git_commit_date(_project_path)
+        _git_hash       = get_git_commit_hash(_project_path)
 
-        _submodules = load_git_submodules(
+        _submodules     = load_git_submodules(
             _project_path,
             _default_server,
             _branch)
 
-        _func_data  = {
-                    }
-        _obj_data   = {
-                    }
+        _path_cache     = {
+                        }
+        _func_data      = {
+                        }
+        _func_files     = {
+                        }
+        _obj_data       = {
+                        }
+        _obj_meta       = {
+                        }
 
-        _root       = etree.parse(_xml_path).getroot()
+        _root           = etree.parse(_xml_path).getroot()
 
-        _funcs      = _root.find('Functions')
+        _funcs          = _root.find('Functions')
         if _funcs is not None:
             for _func in _funcs.getchildren():
                 _nloc           = int(_func.find("nloc").text)
@@ -1043,6 +1094,7 @@ class cc_xml2html(Task):
                 _func_name       = _func.find("name").text
                 _func_start      = _func.find("start_line").text
                 _func_key        = f"{_func_file}:{_func_start}:{_func_name}"
+                _func_base       = os.path.basename(_func_file) if _func_file else ""
                 _func_gitlab_url = get_gitlab_url(
                     _func_file,
                     _func_start,
@@ -1050,6 +1102,7 @@ class cc_xml2html(Task):
                     _gitlab_url,
                     _branch,
                     _submodules)
+                _func_files[_func_key] = (_func_file or _raw_func_file, _func_base)
                 _func_data.update({
                         _func_key : {
                             'name'              : _func_name,
@@ -1077,7 +1130,7 @@ class cc_xml2html(Task):
                             'call_depth'        : _call_depth,
                             'if_no_else'        : _if_no_else,
                             'unused_vars'       : _unused_vars,
-                            'file'              : os.path.basename(_func_file) if _func_file else "",
+                            'file'              : _func_base,
                             'is_c_source'       : _is_c_source,
                             'gitlab_url'        : _func_gitlab_url
                         }
@@ -1094,7 +1147,12 @@ class cc_xml2html(Task):
                     _file_abs_path  = str(Path(_raw_file_path).resolve()) if _raw_file_path else ""
                 except Exception:
                     _file_abs_path  = _raw_file_path
-                _file_basename      = os.path.split(_file_abs_path)[1]
+                _file_key           = _file_abs_path or _raw_file_path
+                _file_basename      = os.path.split(_file_key)[1]
+                _rel_file_path      = get_relative_source_path(
+                    _file_key,
+                    _project_path,
+                    _path_cache)
                 _line_count         = int(_obj.find("line_count").text) if _obj.find("line_count") is not None else int(_obj.find("nloc").text)
                 _static_decls       = int(_obj.find("static_declarations_count").text) if _obj.find("static_declarations_count") is not None else 0
                 _unreachable_stmts  = int(_obj.find("unreachable_statements_count").text) if _obj.find("unreachable_statements_count") is not None else 0
@@ -1111,8 +1169,9 @@ class cc_xml2html(Task):
                     _gitlab_url,
                     _branch,
                     _submodules)
+                _obj_meta[_file_key] = (_file_basename, _rel_file_path)
                 _obj_data.update({
-                        _file_basename : {
+                        _file_key : {
                             'filename'          : _file_basename,
                             'nloc'              : _obj.find("nloc").text,
                             'anloc'             : "%.2f" % (float(_obj.find("average_NLOC").text),),
@@ -1136,6 +1195,19 @@ class cc_xml2html(Task):
             # no source files found in metrics xml
             pass
 
+        _basename_counts = {}
+        for _f_base, _ in _obj_meta.values():
+            _basename_counts[_f_base] = _basename_counts.get(_f_base, 0) + 1
+        for _file_key, (_f_base, _f_rel) in _obj_meta.items():
+            if _basename_counts.get(_f_base, 0) > 1:
+                _obj_data[_file_key]['filename'] = _f_rel
+        for _func_key, (_f_path, _f_base) in _func_files.items():
+            if _f_base and _basename_counts.get(_f_base, 0) > 1:
+                _func_data[_func_key]['file'] = get_relative_source_path(
+                    _f_path,
+                    _project_path,
+                    _path_cache)
+
         _template       = None
 
         with open(
@@ -1144,27 +1216,28 @@ class cc_xml2html(Task):
             encoding='utf-8') as _fin:
             _template   = Template(_fin.read())
 
-        _has_cc             = _yaml_opts.get('cc_threshold') is not None
-        _has_nloc           = _yaml_opts.get('nloc_threshold') is not None
-        _has_sloc           = _yaml_opts.get('sloc_threshold') is not None
-        _has_eloc           = _yaml_opts.get('eloc_threshold') is not None
-        _has_cr             = _yaml_opts.get('min_comment_ratio') is not None
-        _has_file_cr        = _yaml_opts.get('min_file_comment_ratio') is not None
-        _has_param          = _yaml_opts.get('param_threshold') is not None
-        _has_return         = _yaml_opts.get('return_threshold') is not None
-        _has_nest           = _yaml_opts.get('nesting_depth_threshold') is not None
-        _has_stmt           = _yaml_opts.get('stmt_threshold') is not None
-        _has_vocf           = _yaml_opts.get('vocf_threshold') is not None
-        _has_goto           = _yaml_opts.get('goto_threshold') is not None
-        _has_calling        = _yaml_opts.get('calling_threshold') is not None
-        _has_calls          = _yaml_opts.get('calls_threshold') is not None
-        _has_path           = _yaml_opts.get('path_threshold') is not None
-        _has_rec            = _yaml_opts.get('rec_threshold') is not None
-        _has_dead           = (_yaml_opts.get('unreachable_statements_threshold') is not None) or (_yaml_opts.get('dead_code_threshold') is not None)
-        _has_call_depth     = _yaml_opts.get('call_depth_threshold') is not None
-        _has_file_lines     = _yaml_opts.get('file_lines_threshold') is not None
-        _has_static_decls   = _yaml_opts.get('static_declarations_threshold') is not None
-        _has_if_no_else     = _yaml_opts.get('if_without_else_threshold') is not None
+        _opts_present       = _has_configured_thresholds(_yaml_opts)
+        _has_cc             = (_yaml_opts.get('cc_threshold') is not None) if _opts_present else True
+        _has_nloc           = (_yaml_opts.get('nloc_threshold') is not None) if _opts_present else True
+        _has_sloc           = (_yaml_opts.get('sloc_threshold') is not None) if _opts_present else False
+        _has_eloc           = (_yaml_opts.get('eloc_threshold') is not None) if _opts_present else False
+        _has_cr             = (_yaml_opts.get('min_comment_ratio') is not None) if _opts_present else True
+        _has_file_cr        = (_yaml_opts.get('min_file_comment_ratio') is not None) if _opts_present else True
+        _has_param          = (_yaml_opts.get('param_threshold') is not None) if _opts_present else True
+        _has_return         = (_yaml_opts.get('return_threshold') is not None) if _opts_present else True
+        _has_nest           = (_yaml_opts.get('nesting_depth_threshold') is not None) if _opts_present else True
+        _has_stmt           = (_yaml_opts.get('stmt_threshold') is not None) if _opts_present else True
+        _has_vocf           = (_yaml_opts.get('vocf_threshold') is not None) if _opts_present else True
+        _has_goto           = (_yaml_opts.get('goto_threshold') is not None) if _opts_present else True
+        _has_calling        = (_yaml_opts.get('calling_threshold') is not None) if _opts_present else True
+        _has_calls          = (_yaml_opts.get('calls_threshold') is not None) if _opts_present else True
+        _has_path           = (_yaml_opts.get('path_threshold') is not None) if _opts_present else True
+        _has_rec            = (_yaml_opts.get('rec_threshold') is not None) if _opts_present else True
+        _has_dead           = ((_yaml_opts.get('unreachable_statements_threshold') is not None) or (_yaml_opts.get('dead_code_threshold') is not None)) if _opts_present else True
+        _has_call_depth     = (_yaml_opts.get('call_depth_threshold') is not None) if _opts_present else True
+        _has_file_lines     = (_yaml_opts.get('file_lines_threshold') is not None) if _opts_present else True
+        _has_static_decls   = (_yaml_opts.get('static_declarations_threshold') is not None) if _opts_present else True
+        _has_if_no_else     = (_yaml_opts.get('if_without_else_threshold') is not None) if _opts_present else False
 
         if _template is not None:
             with open(
@@ -1174,27 +1247,27 @@ class cc_xml2html(Task):
                 _fout.write(
                     _template.render(
                         FUNC_DATA=dumps(list(_func_data.values())),
-                        TH_CC=_yaml_opts.get('cc_threshold', CC_THRESHOLD),
-                        TH_NLOC=_yaml_opts.get('nloc_threshold', NLOC_THRESHOLD),
-                        TH_SLOC=_yaml_opts.get('sloc_threshold', SLOC_THRESHOLD),
-                        TH_ELOC=_yaml_opts.get('eloc_threshold', ELOC_THRESHOLD),
-                        COMMENT_RATIO=_yaml_opts.get('min_comment_ratio') if _yaml_opts.get('min_comment_ratio') is not None else MIN_COMMENT_RATIO,
-                        FILE_COMMENT_RATIO=_yaml_opts.get('min_file_comment_ratio') if _yaml_opts.get('min_file_comment_ratio') is not None else MIN_FILE_COMMENT_RATIO,
-                        TH_PARAM=_yaml_opts.get('param_threshold', PARAM_THRESHOLD),
-                        TH_RETURN=_yaml_opts.get('return_threshold', RETURN_THRESHOLD),
-                        TH_NESTING=_yaml_opts.get('nesting_depth_threshold', NESTING_DEPTH_THRESHOLD),
-                        TH_STMT=_yaml_opts.get('stmt_threshold', STMT_THRESHOLD),
-                        TH_VOCF=_yaml_opts.get('vocf_threshold', VOCF_THRESHOLD),
-                        TH_GOTO=_yaml_opts.get('goto_threshold', GOTO_THRESHOLD),
-                        TH_CALLING=_yaml_opts.get('calling_threshold', CALLING_THRESHOLD),
-                        TH_PATH=_yaml_opts.get('path_threshold', PATH_THRESHOLD),
-                        TH_REC=_yaml_opts.get('rec_threshold', REC_THRESHOLD),
-                        TH_DEAD=_yaml_opts.get('unreachable_statements_threshold', _yaml_opts.get('dead_code_threshold', DEAD_CODE_THRESHOLD)),
-                        TH_CALLS=_yaml_opts.get('calls_threshold', CALLS_THRESHOLD),
-                        TH_CALL_DEPTH=_yaml_opts.get('call_depth_threshold', CALL_DEPTH_THRESHOLD),
-                        TH_FILE_LINES=_yaml_opts.get('file_lines_threshold', FILE_LINES_THRESHOLD),
-                        TH_STATIC_DECLS=_yaml_opts.get('static_declarations_threshold', STATIC_DECLS_THRESHOLD),
-                        TH_IF_NO_ELSE=_yaml_opts.get('if_without_else_threshold', IF_WITHOUT_ELSE_THRESHOLD),
+                        TH_CC=_get_opt(_yaml_opts, 'cc_threshold', CC_THRESHOLD),
+                        TH_NLOC=_get_opt(_yaml_opts, 'nloc_threshold', NLOC_THRESHOLD),
+                        TH_SLOC=_get_opt(_yaml_opts, 'sloc_threshold', SLOC_THRESHOLD),
+                        TH_ELOC=_get_opt(_yaml_opts, 'eloc_threshold', ELOC_THRESHOLD),
+                        COMMENT_RATIO=_get_opt(_yaml_opts, 'min_comment_ratio', MIN_COMMENT_RATIO),
+                        FILE_COMMENT_RATIO=_get_opt(_yaml_opts, 'min_file_comment_ratio', MIN_FILE_COMMENT_RATIO),
+                        TH_PARAM=_get_opt(_yaml_opts, 'param_threshold', PARAM_THRESHOLD),
+                        TH_RETURN=_get_opt(_yaml_opts, 'return_threshold', RETURN_THRESHOLD),
+                        TH_NESTING=_get_opt(_yaml_opts, 'nesting_depth_threshold', NESTING_DEPTH_THRESHOLD),
+                        TH_STMT=_get_opt(_yaml_opts, 'stmt_threshold', STMT_THRESHOLD),
+                        TH_VOCF=_get_opt(_yaml_opts, 'vocf_threshold', VOCF_THRESHOLD),
+                        TH_GOTO=_get_opt(_yaml_opts, 'goto_threshold', GOTO_THRESHOLD),
+                        TH_CALLING=_get_opt(_yaml_opts, 'calling_threshold', CALLING_THRESHOLD),
+                        TH_PATH=_get_opt(_yaml_opts, 'path_threshold', PATH_THRESHOLD),
+                        TH_REC=_get_opt(_yaml_opts, 'rec_threshold', REC_THRESHOLD),
+                        TH_DEAD=_get_opt(_yaml_opts, 'unreachable_statements_threshold', _get_opt(_yaml_opts, 'dead_code_threshold', DEAD_CODE_THRESHOLD)),
+                        TH_CALLS=_get_opt(_yaml_opts, 'calls_threshold', CALLS_THRESHOLD),
+                        TH_CALL_DEPTH=_get_opt(_yaml_opts, 'call_depth_threshold', CALL_DEPTH_THRESHOLD),
+                        TH_FILE_LINES=_get_opt(_yaml_opts, 'file_lines_threshold', FILE_LINES_THRESHOLD),
+                        TH_STATIC_DECLS=_get_opt(_yaml_opts, 'static_declarations_threshold', STATIC_DECLS_THRESHOLD),
+                        TH_IF_NO_ELSE=_get_opt(_yaml_opts, 'if_without_else_threshold', IF_WITHOUT_ELSE_THRESHOLD),
                         HAS_CC=_has_cc,
                         HAS_NLOC=_has_nloc,
                         HAS_SLOC=_has_sloc,
@@ -1267,9 +1340,9 @@ class cc_xml2junit(Task):
         global IF_WITHOUT_ELSE_THRESHOLD
 
         _error                = 0
-        _xml_path             = str(self.xml_path)
+        _xml_path             = self.xml_path.abspath() if hasattr(self.xml_path, 'abspath') else str(self.xml_path)
         _junit_path           = os.path.join(
-            os.path.dirname(str(self.xml_path)),
+            os.path.dirname(_xml_path),
             "junit_report.xml")
 
         _project_path         = os.getcwd()
@@ -1296,35 +1369,35 @@ class cc_xml2junit(Task):
             # yaml options attached
             pass
 
-        _opts_present         = bool(_yaml_opts)
-        _th_cc                = _yaml_opts.get('cc_threshold', CC_THRESHOLD)
-        _th_vocf              = _yaml_opts.get('vocf_threshold', VOCF_THRESHOLD)
-        _th_stmt              = _yaml_opts.get('stmt_threshold', STMT_THRESHOLD)
-        _th_nest              = _yaml_opts.get('nesting_depth_threshold', NESTING_DEPTH_THRESHOLD)
-        _th_calling           = _yaml_opts.get('calling_threshold', CALLING_THRESHOLD)
-        _th_calls             = _yaml_opts.get('calls_threshold', CALLS_THRESHOLD)
-        _th_path              = _yaml_opts.get('path_threshold', PATH_THRESHOLD)
-        _th_param             = _yaml_opts.get('param_threshold', PARAM_THRESHOLD)
-        _th_return            = _yaml_opts.get('return_threshold', RETURN_THRESHOLD)
-        _th_goto              = _yaml_opts.get('goto_threshold', GOTO_THRESHOLD)
-        _th_rec               = _yaml_opts.get('rec_threshold', REC_THRESHOLD)
-        _th_dead              = _yaml_opts.get('unreachable_statements_threshold', _yaml_opts.get('dead_code_threshold', DEAD_CODE_THRESHOLD))
-        _th_call_depth        = _yaml_opts.get('call_depth_threshold', CALL_DEPTH_THRESHOLD)
-        _raw_cr               = _yaml_opts.get('min_comment_ratio', MIN_COMMENT_RATIO)
-        _th_cr                = float(_raw_cr) if _raw_cr is not None else float(MIN_COMMENT_RATIO)
-        _raw_file_cr          = _yaml_opts.get('min_file_comment_ratio', MIN_FILE_COMMENT_RATIO)
-        _th_file_cr           = float(_raw_file_cr) if _raw_file_cr is not None else float(MIN_FILE_COMMENT_RATIO)
-        _th_nloc              = _yaml_opts.get('nloc_threshold', NLOC_THRESHOLD)
-        _th_sloc              = _yaml_opts.get('sloc_threshold', SLOC_THRESHOLD)
-        _th_eloc              = _yaml_opts.get('eloc_threshold', ELOC_THRESHOLD)
-        _th_file_lines        = _yaml_opts.get('file_lines_threshold', FILE_LINES_THRESHOLD)
-        _th_static_decls      = _yaml_opts.get('static_declarations_threshold', STATIC_DECLS_THRESHOLD)
-        _th_if_no_else        = _yaml_opts.get('if_without_else_threshold', IF_WITHOUT_ELSE_THRESHOLD)
+        _opts_present         = _has_configured_thresholds(_yaml_opts)
+        _th_cc                = _get_opt(_yaml_opts, 'cc_threshold', CC_THRESHOLD)
+        _th_vocf              = float(_get_opt(_yaml_opts, 'vocf_threshold', VOCF_THRESHOLD))
+        _th_stmt              = _get_opt(_yaml_opts, 'stmt_threshold', STMT_THRESHOLD)
+        _th_nest              = _get_opt(_yaml_opts, 'nesting_depth_threshold', NESTING_DEPTH_THRESHOLD)
+        _th_calling           = _get_opt(_yaml_opts, 'calling_threshold', CALLING_THRESHOLD)
+        _th_calls             = _get_opt(_yaml_opts, 'calls_threshold', CALLS_THRESHOLD)
+        _th_path              = _get_opt(_yaml_opts, 'path_threshold', PATH_THRESHOLD)
+        _th_param             = _get_opt(_yaml_opts, 'param_threshold', PARAM_THRESHOLD)
+        _th_return            = _get_opt(_yaml_opts, 'return_threshold', RETURN_THRESHOLD)
+        _th_goto              = _get_opt(_yaml_opts, 'goto_threshold', GOTO_THRESHOLD)
+        _th_rec               = _get_opt(_yaml_opts, 'rec_threshold', REC_THRESHOLD)
+        _th_dead              = _get_opt(_yaml_opts, 'unreachable_statements_threshold', _get_opt(_yaml_opts, 'dead_code_threshold', DEAD_CODE_THRESHOLD))
+        _th_call_depth        = _get_opt(_yaml_opts, 'call_depth_threshold', CALL_DEPTH_THRESHOLD)
+        _th_cr                = float(_get_opt(_yaml_opts, 'min_comment_ratio', MIN_COMMENT_RATIO))
+        _th_file_cr           = float(_get_opt(_yaml_opts, 'min_file_comment_ratio', MIN_FILE_COMMENT_RATIO))
+        _th_nloc              = _get_opt(_yaml_opts, 'nloc_threshold', NLOC_THRESHOLD)
+        _th_sloc              = _get_opt(_yaml_opts, 'sloc_threshold', SLOC_THRESHOLD)
+        _th_eloc              = _get_opt(_yaml_opts, 'eloc_threshold', ELOC_THRESHOLD)
+        _th_file_lines        = _get_opt(_yaml_opts, 'file_lines_threshold', FILE_LINES_THRESHOLD)
+        _th_static_decls      = _get_opt(_yaml_opts, 'static_declarations_threshold', STATIC_DECLS_THRESHOLD)
+        _th_if_no_else        = _get_opt(_yaml_opts, 'if_without_else_threshold', IF_WITHOUT_ELSE_THRESHOLD)
 
         _path_cache           = {
                                 }
-        _funcs_data           = []
-        _sources_data         = []
+        _funcs_map            = {
+                                }
+        _sources_map          = {
+                                }
 
         _root                 = etree.parse(_xml_path).getroot()
         _funcs                = _root.find('Functions')
@@ -1333,21 +1406,27 @@ class cc_xml2junit(Task):
         if _funcs is not None:
             for _func in _funcs.getchildren():
                 _raw_file     = _func.find("filename").text if _func.find("filename") is not None else ""
+                try:
+                    _abs_file = str(Path(_raw_file).resolve()) if _raw_file else ""
+                except Exception:
+                    _abs_file = _raw_file
                 _rel_file     = get_relative_source_path(
-                    _raw_file,
+                    _abs_file or _raw_file,
                     _project_path,
                     _path_cache)
                 _func_name    = _func.find("name").text if _func.find("name") is not None else ""
                 _start_line   = _func.find("start_line").text if _func.find("start_line") is not None else "1"
+                _func_key     = f"{_abs_file}:{_start_line}:{_func_name}"
                 _nloc_val     = int(_func.find("nloc").text) if _func.find("nloc") is not None else 0
                 _com_cnt      = int(_func.find("comment_count").text) if _func.find("comment_count") is not None else 0
                 _com_denom    = _nloc_val + _com_cnt
                 if 0 == _com_denom:
                     _com_ratio = 0.0
                 else:
-                    _com_ratio = (float(_com_cnt) / float(_com_denom)) * 100.0
+                    _com_ratio = float("%.2f" % ((float(_com_cnt) / float(_com_denom)) * 100.0))
 
                 _vocf_el      = _func.find("vocf") if _func.find("vocf") is not None else _func.find("average_statement_size")
+                _vocf_val     = float("%.2f" % (float(_vocf_el.text) if _vocf_el is not None else 0.0))
                 _func_item    = {
                     "name"       : _func_name,
                     "rel_path"   : _rel_file,
@@ -1356,7 +1435,7 @@ class cc_xml2junit(Task):
                     "nloc"       : _nloc_val,
                     "sloc"       : int(_func.find("sloc").text) if _func.find("sloc") is not None else 0,
                     "eloc"       : int(_func.find("eloc").text) if _func.find("eloc") is not None else 0,
-                    "vocf"       : float(_vocf_el.text) if _vocf_el is not None else 0.0,
+                    "vocf"       : _vocf_val,
                     "stmt"       : int(_func.find("statement_count").text) if _func.find("statement_count") is not None else 0,
                     "nesting"    : int(_func.find("max_nesting_depth").text) if _func.find("max_nesting_depth") is not None else 0,
                     "calling"    : int(_func.find("calling_functions_count").text) if _func.find("calling_functions_count") is not None else 0,
@@ -1371,7 +1450,7 @@ class cc_xml2junit(Task):
                     "if_no_else" : int(_func.find("if_without_else_count").text) if _func.find("if_without_else_count") is not None else 0,
                     "cdrp"       : _com_ratio
                 }
-                _funcs_data.append(_func_item)
+                _funcs_map[_func_key] = _func_item
         else:
             # no functions found in xml
             pass
@@ -1379,16 +1458,21 @@ class cc_xml2junit(Task):
         if _sources is not None:
             for _source in _sources.getchildren():
                 _raw_file     = _source.find("filename").text if _source.find("filename") is not None else ""
+                try:
+                    _abs_file = str(Path(_raw_file).resolve()) if _raw_file else ""
+                except Exception:
+                    _abs_file = _raw_file
+                _file_key     = _abs_file or _raw_file
                 _rel_file     = get_relative_source_path(
-                    _raw_file,
+                    _file_key,
                     _project_path,
                     _path_cache)
-                _file_name    = os.path.basename(_rel_file)
+                _file_name    = os.path.split(_file_key)[1]
                 _nloc_val     = int(_source.find("nloc").text) if _source.find("nloc") is not None else 0
                 _line_count   = int(_source.find("line_count").text) if _source.find("line_count") is not None else _nloc_val
                 _static_decls = int(_source.find("static_declarations_count").text) if _source.find("static_declarations_count") is not None else 0
                 _src_cdrp_el  = _source.find("cdrp") if _source.find("cdrp") is not None else _source.find("ccrp")
-                _cdrp_val     = float(_src_cdrp_el.text) if _src_cdrp_el is not None else 0.0
+                _cdrp_val     = float("%.2f" % (float(_src_cdrp_el.text) if _src_cdrp_el is not None else 0.0))
 
                 _source_item  = {
                     "name"         : _file_name,
@@ -1399,10 +1483,21 @@ class cc_xml2junit(Task):
                     "static_decls" : _static_decls,
                     "cdrp"         : _cdrp_val
                 }
-                _sources_data.append(_source_item)
+                _sources_map[_file_key] = _source_item
         else:
             # no source files found in xml
             pass
+
+        _junit_base_counts = {}
+        for _src_item in _sources_map.values():
+            _bname = _src_item["name"]
+            _junit_base_counts[_bname] = _junit_base_counts.get(_bname, 0) + 1
+        for _src_item in _sources_map.values():
+            if _junit_base_counts.get(_src_item["name"], 0) > 1:
+                _src_item["name"] = _src_item["rel_path"]
+
+        _funcs_data           = list(_funcs_map.values())
+        _sources_data         = list(_sources_map.values())
 
         _metric_suites        = [
             {
