@@ -1990,6 +1990,18 @@ def _expand_autosar_macros(tokens):
                         _out.extend(_exp_args[0] + ['(', '*', 'const'] + _exp_args[2] + [')'])
                     _i = _j
                     continue
+        if _tok == 'STATIC':
+            _out.append('static')
+            _i += 1
+            continue
+        if _tok == 'INLINE':
+            _out.append('inline')
+            _i += 1
+            continue
+        if _tok == 'LOCAL_INLINE':
+            _out.extend(['static', 'inline'])
+            _i += 1
+            continue
         _out.append(_tok)
         _i += 1
     return _out
@@ -2022,9 +2034,9 @@ _C_STATIC_LEX_PATTERN = re.compile(
     r'\+=|-=|\*=|/=|%=|&=|\|=|\^=|->|\.\*|::|##|\w+|[^\s]'
 )
 _STATIC_DECL_PURE_QUALS = frozenset([
-    'static', 'extern', 'auto', 'register',
+    'static', 'STATIC', 'extern', 'auto', 'register',
     'const', 'volatile', 'restrict', '__restrict', '__restrict__',
-    'inline', '__inline', '__inline__', '_Inline',
+    'inline', 'INLINE', 'LOCAL_INLINE', '__inline', '__inline__', '_Inline',
     'constexpr', 'constinit', 'consteval',
     'thread_local', '_Thread_local', 'mutable',
     '__far', '__near',
@@ -2531,7 +2543,7 @@ def _count_static_vars_in_seq(tokens, scope_seen=None):
 
         if (
             isinstance(_tok, str)
-            and _tok != 'static'
+            and _tok not in ('static', 'STATIC')
             and (_tok[0].isalpha() or _tok[0] == '_')
             and (_idx + 1) < _limit
             and tokens[_idx + 1] == ':'
@@ -2544,7 +2556,7 @@ def _count_static_vars_in_seq(tokens, scope_seen=None):
         _has_typedef     = False
         _saw_eq          = False
         _saw_top_comma   = False
-        _saw_agg_kw      = False
+        _saw_agg_kw      = None
         _paren_after_agg = False
         _ended_with_body = False
 
@@ -2593,9 +2605,10 @@ def _count_static_vars_in_seq(tokens, scope_seen=None):
                     _ended_with_body = True
                     break
                 if _saw_agg_kw and not _paren_after_agg:
-                    _total          += _count_static_vars_in_seq(tokens[_idx + 1:_close_b], set())
+                    if _saw_agg_kw != 'enum':
+                        _total += _count_static_vars_in_seq(tokens[_idx + 1:_close_b], set())
                     _decl_toks.append('__AGGREGATE_BODY__')
-                    _saw_agg_kw      = False
+                    _saw_agg_kw      = None
                     _paren_after_agg = False
                     _idx             = _close_b + 1
                     continue
@@ -2616,12 +2629,13 @@ def _count_static_vars_in_seq(tokens, scope_seen=None):
                 break
 
             if not _saw_eq and not _saw_top_comma:
-                if _t == 'static':
+                if _t in ('static', 'STATIC'):
                     _has_static_spec = True
                 elif _t == 'typedef':
                     _has_typedef = True
                 elif _t in ('struct', 'union', 'enum', 'class'):
-                    _saw_agg_kw      = True
+                    if _saw_agg_kw != 'enum':
+                        _saw_agg_kw = _t
                     _paren_after_agg = False
             if _t == '=' and (not _decl_toks or _decl_toks[-1] != 'operator'):
                 _saw_eq = True
@@ -2642,7 +2656,7 @@ def compute_static_var_declarations(source_code):
         excluding static functions, static function prototypes, inactive #if 0 blocks,
         and deduplicating #if/#else branches and tentative file-scope declarations.
     '''
-    if not source_code or 'static' not in source_code:
+    if not source_code or ('static' not in source_code and 'STATIC' not in source_code):
         return 0
     _tokens = _tokenize_and_structure_for_static_decls(source_code)
     return _count_static_vars_in_seq(_tokens, set())
@@ -3040,7 +3054,7 @@ class UniversalAnalyzer(list):
             'int32_t', 'int64_t', 'boolean', 'bool', 'size_t', 'Std_ReturnType'
         }
         if self.prev_token in _type_names or (self.prev_token is not None and (self.prev_token.endswith('_t') or self.prev_token.endswith('_type') or self.prev_token.endswith('Type'))):
-            if text.isidentifier() and text not in _type_names and text not in ('const', 'volatile', 'static', 'auto', 'register'):
+            if text.isidentifier() and text not in _type_names and text not in ('const', 'volatile', 'static', 'STATIC', 'auto', 'register'):
                 if self.prev_prev_token != 'extern' and self.nesting_depth >= 0:
                     self.func_declared_vars[text] = 0
                 else:
