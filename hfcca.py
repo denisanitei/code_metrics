@@ -2013,6 +2013,641 @@ def compute_his_vocf(header_tokens, body_tokens):
     return round(float(len(_clean)) / float(_unique_cnt), 2)
 
 
+_C_COMMENT_OR_LIT_PATTERN = re.compile(
+    r'("(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\')|/\*[\s\S]*?\*/|//[^\n]*'
+)
+_C_STATIC_LEX_PATTERN = re.compile(
+    r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|'
+    r'<<=|>>=|->\*|\.\.\.|==|!=|<=|>=|&&|\|\||\+\+|--|<<|>>|'
+    r'\+=|-=|\*=|/=|%=|&=|\|=|\^=|->|\.\*|::|##|\w+|[^\s]'
+)
+_STATIC_DECL_PURE_QUALS = frozenset([
+    'static', 'extern', 'auto', 'register',
+    'const', 'volatile', 'restrict', '__restrict', '__restrict__',
+    'inline', '__inline', '__inline__', '_Inline',
+    'constexpr', 'constinit', 'consteval',
+    'thread_local', '_Thread_local', 'mutable',
+    '__far', '__near',
+])
+
+
+def _find_matching_open_delim(tokens, close_idx, open_tok, close_tok):
+    _depth = 0
+    _idx   = close_idx
+    while _idx >= 0:
+        _tok = tokens[_idx]
+        if _tok == close_tok:
+            _depth += 1
+        elif _tok == open_tok:
+            _depth -= 1
+            if _depth <= 0:
+                return _idx
+        _idx -= 1
+    return 0
+
+
+def _strip_static_decl_attrs(tokens):
+    _out = []
+    _n   = len(tokens)
+    _i   = 0
+    while _i < _n:
+        _tok = tokens[_i]
+        if (
+            isinstance(_tok, str)
+            and _tok in ('__attribute__', '__attribute', '__declspec', '__asm__', '__asm', 'asm')
+            and (_i + 1) < _n
+            and tokens[_i + 1] == '('
+        ):
+            _depth = 1
+            _j     = _i + 2
+            while _j < _n and _depth > 0:
+                if tokens[_j] == '(':
+                    _depth += 1
+                elif tokens[_j] == ')':
+                    _depth -= 1
+                _j += 1
+            if _depth == 0:
+                _i = _j
+                continue
+        _out.append(_tok)
+        _i += 1
+    return _out
+
+
+def _normalize_static_decl_segment(tokens):
+    return _expand_autosar_macros(_strip_static_decl_attrs(tokens))
+
+
+def _tokenize_and_structure_for_static_decls(source_code):
+    _spliced   = re.sub(r'\\\r?\n', ' ', source_code)
+    _clean_src = _C_COMMENT_OR_LIT_PATTERN.sub(
+        lambda _m: _m.group(1) if _m.group(1) is not None else ' ',
+        _spliced,
+    )
+    _stack = [[(None, [])]]
+    for _line in _clean_src.splitlines():
+        _stripped = _line.lstrip()
+        if _stripped.startswith('#'):
+            _rest  = _stripped[1:].lstrip()
+            _m_dir = re.match(r'^([A-Za-z_]\w*)(.*)', _rest)
+            if not _m_dir:
+                continue
+            _dir_name = _m_dir.group(1)
+            _dir_tail = _m_dir.group(2).strip()
+            if _dir_name == 'if':
+                _stack.append([(_C_STATIC_LEX_PATTERN.findall(_dir_tail), [])])
+            elif _dir_name in ('ifdef', 'ifndef'):
+                _stack.append([([_dir_name] + _C_STATIC_LEX_PATTERN.findall(_dir_tail), [])])
+            elif _dir_name == 'elif':
+                if len(_stack) > 1:
+                    _stack[-1].append((_C_STATIC_LEX_PATTERN.findall(_dir_tail), []))
+            elif _dir_name == 'else':
+                if len(_stack) > 1:
+                    _stack[-1].append((None, []))
+            elif _dir_name == 'endif':
+                if len(_stack) > 1:
+                    _clauses          = _stack.pop()
+                    _live             = []
+                    _saw_else_or_true = False
+                    for _cond, _body in _clauses:
+                        if _saw_else_or_true:
+                            continue
+                        if _cond is None:
+                            _live.append(_body)
+                            _saw_else_or_true = True
+                        elif _is_always_false_cond(_cond):
+                            continue
+                        elif _is_always_true_cond(_cond):
+                            _live.append(_body)
+                            _saw_else_or_true = True
+                        else:
+                            _live.append(_body)
+                    if not _live:
+                        continue
+                    _norm_live = [tuple(_normalize_static_decl_segment(_br)) for _br in _live]
+                    if all(_is_balanced_slice(_br) for _br in _norm_live):
+                        if not _saw_else_or_true:
+                            _norm_live.append(())
+                        _stack[-1][-1][1].append(('#PP_BRANCHES', tuple(_norm_live)))
+                    else:
+                        _stack[-1][-1][1].extend(_norm_live[0])
+            else:
+                # #define, #include, #pragma, #undef, #error, #warning, #line ignored
+                pass
+        else:
+            _stack[-1][-1][1].extend(_C_STATIC_LEX_PATTERN.findall(_line))
+
+    while len(_stack) > 1:
+        _unclosed = _stack.pop()
+        for _cond, _body in _unclosed:
+            if _cond is None or not _is_always_false_cond(_cond):
+                _stack[-1][-1][1].extend(_body)
+                break
+
+    return _normalize_static_decl_segment(_stack[0][0][1])
+
+
+def _extract_func_ptr_var_name(group_tokens):
+    _saw_ptr = False
+    _cur     = list(group_tokens)
+    while _cur:
+        _i = 0
+        while _i < len(_cur):
+            _t = _cur[_i]
+            if _t in ('*', '&', '&&'):
+                _saw_ptr = True
+                _i += 1
+            elif _t in _STATIC_DECL_PURE_QUALS:
+                _i += 1
+            elif (_i + 1) < len(_cur) and _cur[_i + 1] == '::':
+                _i += 2
+            else:
+                break
+        _cur = _cur[_i:]
+        if not _cur:
+            return None
+        if _cur[0] == '(':
+            _c   = _find_matching_delim(_cur, 0, len(_cur), '(', ')')
+            _cur = _cur[1:_c]
+            continue
+        _ident = _cur[0]
+        if not isinstance(_ident, str) or not (_ident[0].isalpha() or _ident[0] == '_'):
+            return None
+        _after = _cur[1:]
+        while _after and _after[0] == '[':
+            _cb    = _find_matching_delim(_after, 0, len(_after), '[', ']')
+            _after = _after[_cb + 1:]
+        if _after and _after[0] == '(':
+            return None
+        return _ident if _saw_ptr else None
+    return None
+
+
+def _extract_var_name_from_declarator(lhs_tokens):
+    _cur = list(lhs_tokens)
+    while _cur and _cur[-1] == ']':
+        _open_s = _find_matching_open_delim(_cur, len(_cur) - 1, '[', ']')
+        _cur    = _cur[:_open_s]
+    if _cur and _cur[-1] == ')':
+        _open_p   = _find_matching_open_delim(_cur, len(_cur) - 1, '(', ')')
+        _before_p = _cur[:_open_p]
+        if _before_p and _before_p[-1] == ')':
+            _g_open = _find_matching_open_delim(_before_p, len(_before_p) - 1, '(', ')')
+            _fp_nm  = _extract_func_ptr_var_name(_before_p[_g_open + 1:-1])
+            if _fp_nm:
+                return _fp_nm
+        elif not _before_p or all(_t in _STATIC_DECL_PURE_QUALS or _t in ('int', 'char', 'short', 'long', 'float', 'double', 'signed', 'unsigned', 'bool', '_Bool', 'void') for _t in _before_p):
+            _cur = _cur[_open_p + 1:-1]
+        else:
+            _cur = _before_p
+    for _tok in reversed(_cur):
+        if isinstance(_tok, str) and (_tok[0].isalpha() or _tok[0] == '_') and _tok not in _STATIC_DECL_PURE_QUALS and _tok != '__AGGREGATE_BODY__':
+            return _tok
+    return None
+
+
+def _is_ctor_init_args(arg_tokens):
+    if not arg_tokens or arg_tokens == ['void']:
+        return False
+    _parts   = []
+    _cur     = []
+    _p_depth = 0
+    _b_depth = 0
+    _s_depth = 0
+    for _tok in arg_tokens:
+        if _tok == '(':
+            _p_depth += 1
+            _cur.append(_tok)
+        elif _tok == ')' and _p_depth > 0:
+            _p_depth -= 1
+            _cur.append(_tok)
+        elif _tok == '{':
+            _b_depth += 1
+            _cur.append(_tok)
+        elif _tok == '}' and _b_depth > 0:
+            _b_depth -= 1
+            _cur.append(_tok)
+        elif _tok == '[':
+            _s_depth += 1
+            _cur.append(_tok)
+        elif _tok == ']' and _s_depth > 0:
+            _s_depth -= 1
+            _cur.append(_tok)
+        elif _tok == ',' and _p_depth == 0 and _b_depth == 0 and _s_depth == 0:
+            _parts.append(_cur)
+            _cur = []
+        else:
+            _cur.append(_tok)
+    _parts.append(_cur)
+
+    for _arg in _parts:
+        if not _arg:
+            continue
+        _t0 = _arg[0]
+        if not isinstance(_t0, str):
+            continue
+        if _t0[0].isdigit() or (_t0.startswith('.') and len(_t0) > 1 and _t0[1].isdigit()):
+            return True
+        if _t0[0] in ('"', "'"):
+            return True
+        if _t0 in ('L', 'u', 'U', 'u8') and len(_arg) > 1 and isinstance(_arg[1], str) and _arg[1][0] in ('"', "'"):
+            return True
+        if _t0 in ('true', 'false', 'TRUE', 'FALSE', 'nullptr', 'NULL', 'NULL_PTR', 'STD_ON', 'STD_OFF'):
+            return True
+        if _t0 in ('+', '-', '!', '~', '&', '*'):
+            return True
+    return False
+
+
+def _extract_declarator_var_name(item_tokens, is_first_item):
+    _item = list(item_tokens)
+    if is_first_item and '__AGGREGATE_BODY__' in _item:
+        _last_agg = len(_item) - 1 - _item[::-1].index('__AGGREGATE_BODY__')
+        _item     = _item[_last_agg + 1:]
+        _has_type = True
+    else:
+        _has_type = not is_first_item
+
+    if not _item:
+        return None
+
+    # Check for top-level '=' initializer
+    _p_depth = 0
+    _b_depth = 0
+    _s_depth = 0
+    _eq_idx  = -1
+    for _i, _tok in enumerate(_item):
+        if _tok == '(':
+            _p_depth += 1
+        elif _tok == ')' and _p_depth > 0:
+            _p_depth -= 1
+        elif _tok == '{':
+            _b_depth += 1
+        elif _tok == '}' and _b_depth > 0:
+            _b_depth -= 1
+        elif _tok == '[':
+            _s_depth += 1
+        elif _tok == ']' and _s_depth > 0:
+            _s_depth -= 1
+        elif _tok == '=' and _p_depth == 0 and _b_depth == 0 and _s_depth == 0:
+            if _i == 0 or _item[_i - 1] != 'operator':
+                _eq_idx = _i
+                break
+
+    if _eq_idx != -1:
+        _lhs = _item[:_eq_idx]
+        _rhs = _item[_eq_idx + 1:]
+        if _rhs in (['delete'], ['default']):
+            return None
+        return _extract_var_name_from_declarator(_lhs)
+
+    # Reject C++ trailing-return-type function prototypes: static auto f(int) -> int;
+    _p_depth  = 0
+    _b_depth  = 0
+    _s_depth  = 0
+    _saw_rp   = False
+    for _tok in _item:
+        if _tok == '(':
+            _p_depth += 1
+        elif _tok == ')' and _p_depth > 0:
+            _p_depth -= 1
+            if _p_depth == 0:
+                _saw_rp = True
+        elif _tok == '{':
+            _b_depth += 1
+        elif _tok == '}' and _b_depth > 0:
+            _b_depth -= 1
+        elif _tok == '[':
+            _s_depth += 1
+        elif _tok == ']' and _s_depth > 0:
+            _s_depth -= 1
+        elif _tok == '->' and _saw_rp and _p_depth == 0 and _b_depth == 0 and _s_depth == 0:
+            return None
+
+    # Strip trailing C++ post-parameter function qualifiers: const, volatile, noexcept(...), override, final, throw(...)
+    while len(_item) >= 2:
+        if _item[-1] == ')':
+            _op = _find_matching_open_delim(_item, len(_item) - 1, '(', ')')
+            if _op >= 1 and _item[_op - 1] in ('noexcept', 'throw'):
+                _item = _item[:_op - 1]
+                continue
+        if _item[-1] in ('const', 'volatile', 'noexcept', 'override', 'final') and _item[-2] == ')':
+            _item = _item[:-1]
+            continue
+        break
+
+    if not _item:
+        return None
+
+    _last = _item[-1]
+    if _last == ']':
+        return _extract_var_name_from_declarator(_item)
+
+    if _last == '}':
+        _open_b = _find_matching_open_delim(_item, len(_item) - 1, '{', '}')
+        _lhs    = _item[:_open_b]
+        if _lhs:
+            return _extract_var_name_from_declarator(_lhs)
+        return None
+
+    if _last == ')':
+        _open_p   = _find_matching_open_delim(_item, len(_item) - 1, '(', ')')
+        _before_p = _item[:_open_p]
+        _inside_p = _item[_open_p + 1:-1]
+        if _before_p and _before_p[-1] == ')':
+            _g_open = _find_matching_open_delim(_before_p, len(_before_p) - 1, '(', ')')
+            return _extract_func_ptr_var_name(_before_p[_g_open + 1:-1])
+        if _is_ctor_init_args(_inside_p):
+            return _extract_var_name_from_declarator(_before_p)
+        return None
+
+    if not isinstance(_last, str) or not (_last[0].isalpha() or _last[0] == '_') or _last in _STATIC_DECL_PURE_QUALS:
+        return None
+
+    # Plain / pointer variable declarator without '=' or '()' (e.g. static uint8 x; or static struct Tag s;)
+    _units = []
+    _i     = 0
+    _n     = len(_item)
+    while _i < _n:
+        _t = _item[_i]
+        if _t in _STATIC_DECL_PURE_QUALS:
+            _i += 1
+            continue
+        if _t in ('struct', 'union', 'enum', 'class'):
+            if (_i + 1) < _n and isinstance(_item[_i + 1], str) and (_item[_i + 1][0].isalpha() or _item[_i + 1][0] == '_'):
+                _units.append(_t + ' ' + _item[_i + 1])
+                _i += 2
+                continue
+            _units.append(_t)
+            _i += 1
+            continue
+        if _t == '(' and _units:
+            _cp = _find_matching_delim(_item, _i, _n, '(', ')')
+            _units[-1] = _units[-1] + '(...)'
+            _i = _cp + 1
+            continue
+        if _t == '<' and _units and _units[-1] != 'operator':
+            _ca = _find_matching_delim(_item, _i, _n, '<', '>')
+            _units[-1] = _units[-1] + '<...>'
+            _i = _ca + 1
+            continue
+        if _t == '::' and _units and (_i + 1) < _n:
+            _units[-1] = _units[-1] + '::' + str(_item[_i + 1])
+            _i += 2
+            continue
+        _units.append(_t)
+        _i += 1
+
+    if not _units:
+        return None
+    if _has_type:
+        return _last
+    if len(_units) >= 2:
+        return _last
+    return None
+
+
+def _count_static_vars_in_decl(decl_tokens, scope_seen):
+    _items       = []
+    _cur         = []
+    _p_depth     = 0
+    _b_depth     = 0
+    _s_depth     = 0
+    _angle_depth = 0
+    _in_init     = False
+
+    for _i, _tok in enumerate(decl_tokens):
+        if _tok == '(':
+            _p_depth += 1
+            _cur.append(_tok)
+        elif _tok == ')' and _p_depth > 0:
+            _p_depth -= 1
+            _cur.append(_tok)
+        elif _tok == '{':
+            _b_depth += 1
+            _cur.append(_tok)
+        elif _tok == '}' and _b_depth > 0:
+            _b_depth -= 1
+            _cur.append(_tok)
+        elif _tok == '[':
+            _s_depth += 1
+            _cur.append(_tok)
+        elif _tok == ']' and _s_depth > 0:
+            _s_depth -= 1
+            _cur.append(_tok)
+        elif not _in_init and _p_depth == 0 and _b_depth == 0 and _s_depth == 0 and _tok == '<' and (_i == 0 or decl_tokens[_i - 1] != 'operator'):
+            _angle_depth += 1
+            _cur.append(_tok)
+        elif not _in_init and _p_depth == 0 and _b_depth == 0 and _s_depth == 0 and _tok == '>' and _angle_depth > 0:
+            _angle_depth -= 1
+            _cur.append(_tok)
+        elif _tok == '=' and _p_depth == 0 and _b_depth == 0 and _s_depth == 0 and (_i == 0 or decl_tokens[_i - 1] != 'operator'):
+            _in_init     = True
+            _angle_depth = 0
+            _cur.append(_tok)
+        elif _tok == ',' and _p_depth == 0 and _b_depth == 0 and _s_depth == 0 and _angle_depth == 0:
+            _items.append(_cur)
+            _cur     = []
+            _in_init = False
+        else:
+            _cur.append(_tok)
+    if _cur:
+        _items.append(_cur)
+
+    _cnt = 0
+    for _idx_item, _item in enumerate(_items):
+        _vname = _extract_declarator_var_name(_item, _idx_item == 0)
+        if _vname is not None and _vname not in scope_seen:
+            scope_seen.add(_vname)
+            _cnt += 1
+    return _cnt
+
+
+def _count_static_vars_in_seq(tokens, scope_seen=None):
+    if scope_seen is None:
+        scope_seen = set()
+    _limit = len(tokens)
+    _idx   = 0
+    _total = 0
+
+    while _idx < _limit:
+        _tok = tokens[_idx]
+
+        if isinstance(_tok, tuple) and len(_tok) == 2 and _tok[0] == '#PP_BRANCHES':
+            _best_cnt  = -1
+            _best_seen = set(scope_seen)
+            for _br in _tok[1]:
+                _br_seen = set(scope_seen)
+                _br_cnt  = _count_static_vars_in_seq(_br, _br_seen)
+                if _br_cnt > _best_cnt:
+                    _best_cnt  = _br_cnt
+                    _best_seen = _br_seen
+            if _best_cnt > 0:
+                _total += _best_cnt
+            scope_seen.clear()
+            scope_seen.update(_best_seen)
+            _idx += 1
+            continue
+
+        if _tok in (';', '}'):
+            _idx += 1
+            continue
+
+        if _tok == '{':
+            _close_b = _find_matching_delim(tokens, _idx, _limit, '{', '}')
+            _total  += _count_static_vars_in_seq(tokens[_idx + 1:_close_b], set())
+            _idx     = _close_b + 1
+            continue
+
+        if _tok in ('if', 'while', 'for', 'switch', 'catch'):
+            _idx += 1
+            if _idx < _limit and tokens[_idx] == '(':
+                _idx = _find_matching_delim(tokens, _idx, _limit, '(', ')') + 1
+            continue
+
+        if _tok in ('else', 'do', 'try'):
+            _idx += 1
+            continue
+
+        if _tok in ('return', 'goto', 'break', 'continue', 'throw'):
+            while _idx < _limit and tokens[_idx] != ';':
+                if tokens[_idx] == '(':
+                    _idx = _find_matching_delim(tokens, _idx, _limit, '(', ')') + 1
+                elif tokens[_idx] == '{':
+                    _idx = _find_matching_delim(tokens, _idx, _limit, '{', '}') + 1
+                else:
+                    _idx += 1
+            if _idx < _limit and tokens[_idx] == ';':
+                _idx += 1
+            continue
+
+        if _tok == 'case':
+            _idx = _skip_case_label(tokens, _idx + 1, _limit)
+            continue
+
+        if _tok == 'default' and (_idx + 1) < _limit and tokens[_idx + 1] == ':':
+            _idx += 2
+            continue
+
+        if (
+            isinstance(_tok, str)
+            and _tok != 'static'
+            and (_tok[0].isalpha() or _tok[0] == '_')
+            and (_idx + 1) < _limit
+            and tokens[_idx + 1] == ':'
+        ):
+            _idx += 2
+            continue
+
+        _decl_toks       = []
+        _has_static_spec = False
+        _has_typedef     = False
+        _saw_eq          = False
+        _saw_top_comma   = False
+        _saw_agg_kw      = False
+        _paren_after_agg = False
+        _ended_with_body = False
+
+        while _idx < _limit:
+            _t = tokens[_idx]
+            if isinstance(_t, tuple):
+                if not _decl_toks:
+                    break
+                if len(_t) == 2 and _t[0] == '#PP_BRANCHES' and len(_t[1]) > 0:
+                    tokens = list(tokens[:_idx]) + list(_t[1][0]) + list(tokens[_idx + 1:])
+                    _limit = len(tokens)
+                    continue
+                _idx += 1
+                continue
+            if _t == ';':
+                _idx += 1
+                break
+            if _t == '}':
+                break
+            if _t == '(':
+                _close_p = _find_matching_delim(tokens, _idx, _limit, '(', ')')
+                if _saw_agg_kw and not _saw_eq:
+                    _paren_after_agg = True
+                _decl_toks.extend(tokens[_idx:_close_p + 1])
+                _idx = _close_p + 1
+                continue
+            if _t == '[':
+                _close_s = _find_matching_delim(tokens, _idx, _limit, '[', ']')
+                _decl_toks.extend(tokens[_idx:_close_s + 1])
+                _idx = _close_s + 1
+                continue
+            if _t == '{':
+                _close_b = _find_matching_delim(tokens, _idx, _limit, '{', '}')
+                _after_b = tokens[_close_b + 1] if (_close_b + 1) < _limit else None
+                if _saw_eq:
+                    _decl_toks.extend(tokens[_idx:_close_b + 1])
+                    _idx = _close_b + 1
+                    continue
+                if _decl_toks and (
+                    _decl_toks[0] == 'namespace'
+                    or (_decl_toks[0] == 'extern' and len(_decl_toks) >= 2 and isinstance(_decl_toks[1], str) and _decl_toks[1].startswith('"'))
+                ):
+                    _inner_seen      = scope_seen if _decl_toks[0] == 'extern' else set()
+                    _total          += _count_static_vars_in_seq(tokens[_idx + 1:_close_b], _inner_seen)
+                    _idx             = _close_b + 1
+                    _ended_with_body = True
+                    break
+                if _saw_agg_kw and not _paren_after_agg:
+                    _total          += _count_static_vars_in_seq(tokens[_idx + 1:_close_b], set())
+                    _decl_toks.append('__AGGREGATE_BODY__')
+                    _saw_agg_kw      = False
+                    _paren_after_agg = False
+                    _idx             = _close_b + 1
+                    continue
+                _post_fn_quals = {'const', 'volatile', 'noexcept', 'override', 'final'}
+                if (
+                    _decl_toks
+                    and _decl_toks[-1] != ')'
+                    and _decl_toks[-1] not in _post_fn_quals
+                    and '->' not in _decl_toks
+                    and _after_b in (';', ',')
+                ):
+                    _decl_toks.extend(tokens[_idx:_close_b + 1])
+                    _idx = _close_b + 1
+                    continue
+                _total          += _count_static_vars_in_seq(tokens[_idx + 1:_close_b], set())
+                _idx             = _close_b + 1
+                _ended_with_body = True
+                break
+
+            if not _saw_eq and not _saw_top_comma:
+                if _t == 'static':
+                    _has_static_spec = True
+                elif _t == 'typedef':
+                    _has_typedef = True
+                elif _t in ('struct', 'union', 'enum', 'class'):
+                    _saw_agg_kw      = True
+                    _paren_after_agg = False
+            if _t == '=' and (not _decl_toks or _decl_toks[-1] != 'operator'):
+                _saw_eq = True
+            elif _t == ',':
+                _saw_top_comma = True
+                _saw_eq        = False
+            _decl_toks.append(_t)
+            _idx += 1
+
+        if not _ended_with_body and _has_static_spec and not _has_typedef and _decl_toks:
+            _total += _count_static_vars_in_decl(_decl_toks, scope_seen)
+
+    return _total
+
+
+def compute_static_var_declarations(source_code):
+    ''' Count static variable declarations in a C/C++ translation unit,
+        excluding static functions, static function prototypes, inactive #if 0 blocks,
+        and deduplicating #if/#else branches and tentative file-scope declarations.
+    '''
+    if not source_code or 'static' not in source_code:
+        return 0
+    _tokens = _tokenize_and_structure_for_static_decls(source_code)
+    return _count_static_vars_in_seq(_tokens, set())
+
+
 def _count_non_empty_comment_lines(text):
     _cnt = 0
     for _line in text.split('\n'):
@@ -2853,7 +3488,7 @@ class FileAnalyzer:
 
     def analyze_source_code_with_parser1(self, filename, code, parser):
         _tokens                 = list(generate_tokens(code))
-        _static_decls_cnt       = sum(1 for _tok, _ln in _tokens if _tok == 'static')
+        _static_decls_cnt       = compute_static_var_declarations(code)
         result                  = self.analyze_source_code_with_parser(filename, parser, _tokens)
         result.static_declarations_count = _static_decls_cnt
         result.line_count       = len(code.splitlines())
