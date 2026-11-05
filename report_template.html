@@ -260,6 +260,290 @@
             };
         }
 
+        function computeNiceHorizontalAxis(maxVal) {
+            if (!(maxVal > 0)) {
+                return { max: 4, ticks: [0, 1, 2, 3, 4] };
+            }
+            var targetMax = maxVal * 1.18;
+            var rawStep = targetMax / 4;
+            var mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+            var residual = rawStep / mag;
+            var niceMult;
+            if (residual <= 1) niceMult = 1;
+            else if (residual <= 2) niceMult = 2;
+            else if (residual <= 2.5) niceMult = 2.5;
+            else if (residual <= 5) niceMult = 5;
+            else niceMult = 10;
+            var step = niceMult * mag;
+            if (maxVal >= 1 && Math.floor(maxVal) === maxVal && step < 1) {
+                step = 1;
+            }
+            if (maxVal <= 10 && Math.floor(maxVal) === maxVal && step === 2.5) {
+                step = 2;
+            }
+            var count = Math.max(3, Math.ceil(targetMax / step));
+            if (count > 5) {
+                if (niceMult === 1) step = 2 * mag;
+                else if (niceMult === 2 || niceMult === 2.5) step = 5 * mag;
+                else step = 10 * mag;
+                count = Math.max(3, Math.ceil(targetMax / step));
+            }
+            var ticks = [];
+            for (var i = 0; i <= count; i++) {
+                ticks.push(Number((i * step).toFixed(6)));
+            }
+            return { max: ticks[ticks.length - 1], ticks: ticks };
+        }
+
+        function formatAxisTick(val) {
+            if (Math.floor(val) === val) {
+                return formatInt(val);
+            }
+            return Number(val.toFixed(2)).toString();
+        }
+
+        function copyTextToClipboard(text) {
+            var fallbackCopy = function() {
+                var temp = document.createElement('textarea');
+                temp.value = text;
+                temp.setAttribute('readonly', '');
+                temp.style.position = 'fixed';
+                temp.style.opacity = '0';
+                temp.style.left = '-9999px';
+                document.body.appendChild(temp);
+                temp.select();
+                try { document.execCommand('copy'); } catch (e) {}
+                document.body.removeChild(temp);
+                showToast('Copied: ' + text);
+            };
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(function() {
+                    showToast('Copied: ' + text);
+                }).catch(fallbackCopy);
+            } else {
+                fallbackCopy();
+            }
+        }
+
+        function syncTopBarActiveSelection() {
+            var rows = document.querySelectorAll('.top-hbar-row');
+            rows.forEach(function(rowEl) {
+                var scope = rowEl.getAttribute('data-scope');
+                var itemName = rowEl.getAttribute('data-name');
+                var isActive = false;
+                if (scope === 'obj') {
+                    isActive = !!(objState.chartFilter && objState.chartFilter.type === 'file_exact' && objState.chartFilter.value === itemName);
+                } else {
+                    isActive = !!(funcState.chartFilter && funcState.chartFilter.type === 'func_exact' && funcState.chartFilter.value === itemName);
+                }
+                if (isActive) {
+                    rowEl.classList.add('is-active');
+                } else {
+                    rowEl.classList.remove('is-active');
+                }
+            });
+        }
+
+        function renderTopHorizontalBarChart(container, chartData, options, scope) {
+            if (!container) return null;
+            var parentCard = container.parentElement;
+            var hasSwe4Badge = false;
+            if (parentCard && parentCard.classList && parentCard.classList.contains('chart-container')) {
+                parentCard.classList.add('top-hbar-card');
+                hasSwe4Badge = !!parentCard.querySelector('.chart-swe4-badge');
+            }
+
+            var headerRow = (chartData && chartData.length > 0) ? chartData[0] : ['Function Name', 'Value'];
+            var vAxisTitle = (options && options.vAxis && options.vAxis.title) || headerRow[0] || 'Function Name';
+            var metricLabel = headerRow[1] || '';
+            var titleText = (options && options.title) || '';
+            var hAxisTitle = (options && options.hAxis && options.hAxis.title) || metricLabel;
+            var resolvedScope = scope || (vAxisTitle === 'File Name' ? 'obj' : 'func');
+
+            var items = [];
+            var maxVal = 0;
+            var maxNameLen = 0;
+            for (var i = 1; i < (chartData ? chartData.length : 0); i++) {
+                var r = chartData[i];
+                var nameStr = String(r[0] !== undefined && r[0] !== null ? r[0] : '');
+                var numVal = Number(r[1]) || 0;
+                var rawStyle = String(r[2] || '');
+                var barColor = rawStyle.replace(/^color:\s*/i, '').trim() || COLOR_PASS;
+                var annText = String(r[3] !== undefined && r[3] !== null ? r[3] : numVal);
+                if (numVal > maxVal) maxVal = numVal;
+                if (nameStr.length > maxNameLen) maxNameLen = nameStr.length;
+                items.push({
+                    name: nameStr,
+                    value: numVal,
+                    color: barColor,
+                    annotation: annText
+                });
+            }
+
+            var labelColPx = Math.min(285, Math.max(185, Math.ceil(maxNameLen * 6.3) + 30));
+            var axisInfo = computeNiceHorizontalAxis(maxVal);
+
+            container.innerHTML = '';
+            var wrap = document.createElement('div');
+            wrap.className = 'top-hbar-chart' + (hasSwe4Badge ? ' has-swe4-badge' : '');
+            wrap.style.setProperty('--hbar-label-w', labelColPx + 'px');
+
+            var titleEl = document.createElement('div');
+            titleEl.className = 'top-hbar-title';
+            titleEl.textContent = titleText;
+            wrap.appendChild(titleEl);
+
+            if (items.length === 0) {
+                var emptyEl = document.createElement('div');
+                emptyEl.className = 'top-hbar-empty';
+                emptyEl.textContent = 'No items to display';
+                wrap.appendChild(emptyEl);
+                container.appendChild(wrap);
+                return wrap;
+            }
+
+            var bodyEl = document.createElement('div');
+            bodyEl.className = 'top-hbar-body';
+
+            var vAxisEl = document.createElement('div');
+            vAxisEl.className = 'top-hbar-vaxis-title';
+            vAxisEl.textContent = vAxisTitle;
+            bodyEl.appendChild(vAxisEl);
+
+            var mainCol = document.createElement('div');
+            mainCol.className = 'top-hbar-main';
+
+            var rowsWrap = document.createElement('div');
+            rowsWrap.className = 'top-hbar-rows';
+
+            var gridOverlayHtml = '';
+            axisInfo.ticks.forEach(function(t, idx) {
+                var leftPct = axisInfo.max > 0 ? (t / axisInfo.max) * 100 : 0;
+                gridOverlayHtml += '<span class="top-hbar-gridline' + (idx === 0 ? ' is-baseline' : '') + '" style="left:' + leftPct.toFixed(4) + '%;"></span>';
+            });
+
+            var copySvg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+
+            items.forEach(function(item) {
+                var rowEl = document.createElement('div');
+                rowEl.className = 'top-hbar-row';
+                rowEl.setAttribute('data-scope', resolvedScope);
+                rowEl.setAttribute('data-name', item.name);
+
+                var labelCell = document.createElement('div');
+                labelCell.className = 'top-hbar-label-cell';
+                labelCell.title = item.name + ' (Select text or click icon to copy)';
+
+                var nameSpan = document.createElement('span');
+                nameSpan.className = 'top-hbar-name';
+                nameSpan.textContent = item.name;
+                labelCell.appendChild(nameSpan);
+
+                var copyBtn = document.createElement('button');
+                copyBtn.type = 'button';
+                copyBtn.className = 'top-hbar-copy-btn';
+                copyBtn.title = 'Copy ' + item.name;
+                copyBtn.setAttribute('aria-label', 'Copy ' + item.name);
+                copyBtn.innerHTML = copySvg;
+                copyBtn.addEventListener('click', function(ev) {
+                    ev.stopPropagation();
+                    ev.preventDefault();
+                    copyTextToClipboard(item.name);
+                });
+                labelCell.appendChild(copyBtn);
+
+                var trackCell = document.createElement('div');
+                trackCell.className = 'top-hbar-track-cell';
+                trackCell.title = item.name + ' — ' + metricLabel + ': ' + item.annotation + ' (Click bar to filter)';
+
+                var gridLayer = document.createElement('div');
+                gridLayer.className = 'top-hbar-grid-layer';
+                gridLayer.innerHTML = gridOverlayHtml;
+                trackCell.appendChild(gridLayer);
+
+                var barRow = document.createElement('div');
+                barRow.className = 'top-hbar-bar-wrap';
+
+                var widthPct = axisInfo.max > 0 ? Math.min(100, Math.max(0, (item.value / axisInfo.max) * 100)) : 0;
+                var fillEl = document.createElement('div');
+                fillEl.className = 'top-hbar-fill';
+                fillEl.style.width = widthPct.toFixed(3) + '%';
+                fillEl.style.backgroundColor = item.color;
+                barRow.appendChild(fillEl);
+
+                var valEl = document.createElement('span');
+                valEl.className = 'top-hbar-val';
+                valEl.style.color = item.color;
+                valEl.textContent = item.annotation;
+                barRow.appendChild(valEl);
+
+                trackCell.appendChild(barRow);
+
+                trackCell.addEventListener('click', function() {
+                    if (resolvedScope === 'obj') {
+                        if (objState.chartFilter && objState.chartFilter.type === 'file_exact' && objState.chartFilter.value === item.name) {
+                            clearObjChartFilter();
+                        } else {
+                            setObjChartFilter('file_exact', 'File: ' + item.name, item.name);
+                        }
+                    } else {
+                        if (funcState.chartFilter && funcState.chartFilter.type === 'func_exact' && funcState.chartFilter.value === item.name) {
+                            clearFuncChartFilter();
+                        } else {
+                            setFuncChartFilter('func_exact', 'Function: ' + item.name, item.name);
+                        }
+                    }
+                });
+
+                rowEl.appendChild(labelCell);
+                rowEl.appendChild(trackCell);
+                rowsWrap.appendChild(rowEl);
+            });
+
+            mainCol.appendChild(rowsWrap);
+
+            var footerEl = document.createElement('div');
+            footerEl.className = 'top-hbar-footer';
+
+            var ticksRow = document.createElement('div');
+            ticksRow.className = 'top-hbar-ticks-row';
+            var spacer = document.createElement('div');
+            spacer.className = 'top-hbar-axis-spacer';
+            ticksRow.appendChild(spacer);
+
+            var ticksTrack = document.createElement('div');
+            ticksTrack.className = 'top-hbar-ticks-track';
+            axisInfo.ticks.forEach(function(t) {
+                var leftPct = axisInfo.max > 0 ? (t / axisInfo.max) * 100 : 0;
+                var tickLbl = document.createElement('span');
+                tickLbl.className = 'top-hbar-tick';
+                tickLbl.style.left = leftPct.toFixed(4) + '%';
+                tickLbl.textContent = formatAxisTick(t);
+                ticksTrack.appendChild(tickLbl);
+            });
+            ticksRow.appendChild(ticksTrack);
+            footerEl.appendChild(ticksRow);
+
+            var hTitleRow = document.createElement('div');
+            hTitleRow.className = 'top-hbar-haxis-row';
+            var hSpacer = document.createElement('div');
+            hSpacer.className = 'top-hbar-axis-spacer';
+            hTitleRow.appendChild(hSpacer);
+            var hTitleEl = document.createElement('div');
+            hTitleEl.className = 'top-hbar-haxis-title';
+            hTitleEl.textContent = hAxisTitle;
+            hTitleRow.appendChild(hTitleEl);
+            footerEl.appendChild(hTitleRow);
+
+            mainCol.appendChild(footerEl);
+            bodyEl.appendChild(mainCol);
+            wrap.appendChild(bodyEl);
+            container.appendChild(wrap);
+
+            syncTopBarActiveSelection();
+            return wrap;
+        }
+
         // Global Charts references
         var ccChart = null;
         var topFuncChart = null;
@@ -373,8 +657,41 @@
             currentPage: 1
         };
 
+        function initTopCharts() {
+            if (has_cc) drawTopComplexFunctionsChart();
+            if (has_vocf) drawTopVocfFunctionsChart();
+            if (has_stmt) drawTopStmtFunctionsChart();
+            if (has_call_depth) drawTopCallDepthFunctionsChart();
+            if (has_static_decls) drawTopStaticDeclsFilesChart();
+            if (has_goto) drawTopGotoFunctionsChart();
+            if (has_return) drawTopReturnsFunctionsChart();
+            if (has_calling) drawTopCallingFunctionsChart();
+            if (has_path) drawTopPathsFunctionsChart();
+            if (has_param) drawTopParamsFunctionsChart();
+            if (has_rec) drawTopRecFunctionsChart();
+            if (has_dead) drawTopDeadFunctionsChart();
+            if (has_calls) drawTopCallsFunctionsChart();
+            if (has_nesting) drawTopNestingFunctionsChart();
+            if (has_nloc) drawTopNLOCFunctionsChart();
+            if (has_sloc) drawTopSLOCFunctionsChart();
+            if (has_eloc) drawTopELOCFunctionsChart();
+            if (has_if_no_else) drawTopIfNoElseFunctionsChart();
+            if (has_file_lines) drawTopFileLinesFilesChart();
+            if (has_comment_ratio) drawTopCommentRatioFunctionsChart();
+            if (has_file_comment_ratio) drawTopFileCommentRatioFilesChart();
+        }
+
         // Attempt to load Google Charts
         var chartsLoaded = false;
+        window.addEventListener('DOMContentLoaded', function() {
+            initTableControls();
+            applyFuncFilters();
+            applyObjFilters();
+            renderOverallMetrics();
+            initThresholdRangeBars();
+            initTopCharts();
+        });
+
         if (typeof google !== 'undefined' && google.charts) {
             google.charts.load('current', {'packages':['corechart', 'bar']});
             google.charts.setOnLoadCallback(initCharts);
@@ -382,18 +699,16 @@
             window.addEventListener('DOMContentLoaded', function() {
                 var chartContainers = document.querySelectorAll('.chart-container');
                 chartContainers.forEach(function(c) {
-                    c.innerHTML = '<div class="offline-notice">⚠️ Google Charts unavailable offline. Interactive tables below are fully active.</div>';
+                    if (c.classList.contains('top-hbar-card') || c.querySelector('.top-hbar-chart')) return;
+                    var plotDiv = c.querySelector('div[id$="-chart"]');
+                    if (plotDiv) {
+                        plotDiv.innerHTML = '<div class="offline-notice">⚠️ Google Charts unavailable offline. Interactive tables below are fully active.</div>';
+                    } else {
+                        c.innerHTML = '<div class="offline-notice">⚠️ Google Charts unavailable offline. Interactive tables below are fully active.</div>';
+                    }
                 });
             });
         }
-
-        window.addEventListener('DOMContentLoaded', function() {
-            initTableControls();
-            applyFuncFilters();
-            applyObjFilters();
-            renderOverallMetrics();
-            initThresholdRangeBars();
-        });
 
         function initCharts() {
             chartsLoaded = true;
@@ -486,6 +801,8 @@
         window.addEventListener('resize', function() {
             if (chartsLoaded) {
                 initCharts();
+            } else {
+                initTopCharts();
             }
         });
 
@@ -598,13 +915,18 @@
             if (slocEl) slocEl.innerText = formatInt(totalSLOC);
             var elocEl = document.getElementById('total-eloc');
             if (elocEl) elocEl.innerText = formatInt(totalELOC);
-            document.getElementById('total-violations').innerText = formatInt(funcViolations + fileViolations);
+            document.getElementById('total-violations').innerText = formatInt(sumFailed);
+            var violCardEl = document.getElementById('card-total-violations');
+            if (violCardEl && totalPassFail > 0) {
+                violCardEl.title = formatInt(sumFailed) + ' threshold violations / ' + formatInt(totalPassFail) +
+                    ' total checks (' + formatInt(funcViolations + fileViolations) + ' functions/files affected) - Click to filter violations';
+            }
             var compEl = document.getElementById('overall-compliance');
             if (compEl) compEl.innerText = formatFloat(overallCompliancePct, 2) + '%';
             var compCardEl = document.getElementById('card-overall-compliance');
             if (compCardEl && totalPassFail > 0) {
                 compCardEl.title = formatInt(sumPassed) + ' passed / ' + formatInt(totalPassFail) +
-                    ' total (' + formatFloat(overallCompliancePct, 2) + '%) - Click to view Threshold Limits';
+                    ' total checks (' + formatInt(sumFailed) + ' threshold violations) - Click to view Threshold Limits';
             }
         }
 
@@ -1341,7 +1663,8 @@
 
         // --- Top Complex Functions Chart ---
         function drawTopComplexFunctionsChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-complex-functions-chart');
+            if (!container) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
                 return parseInt(b.cc) - parseInt(a.cc);
@@ -1356,31 +1679,12 @@
                 chartData.push([f.name, cc, 'color: ' + barColor, formatInt(cc)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, false);
-
             var options = getTopChartOptions(
                 'Top 10 Most Complex Functions (≤ ' + th_cc + ' Pass 🟢, > ' + th_cc + ' Fail 🔴)',
                 'Cyclomatic Complexity'
             );
 
-            var container = document.getElementById('top-complex-functions-chart');
-            if (!container) return;
-            topFuncChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topFuncChart, 'select', function() {
-                var sel = topFuncChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFunc = top10FuncsData[sel[0].row];
-                    if (selectedFunc) {
-                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
-                    }
-                } else {
-                    clearFuncChartFilter();
-                }
-            });
-
-            topFuncChart.draw(data, options);
+            topFuncChart = renderTopHorizontalBarChart(container, chartData, options, 'func');
         }
 
         // --- Lines of Code (NLOC) Distribution Chart ---
@@ -1455,7 +1759,8 @@
 
         // --- Top Longest Functions (NLOC) Chart ---
         function drawTopNLOCFunctionsChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-nloc-functions-chart');
+            if (!container) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
                 return parseInt(b.nloc) - parseInt(a.nloc);
@@ -1470,31 +1775,12 @@
                 chartData.push([f.name, nloc, 'color: ' + barColor, formatInt(nloc)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, false);
-
             var options = getTopChartOptions(
                 'Top 10 Longest Functions (NLOC) (≤ ' + th_nloc + ' Pass 🟢, > ' + th_nloc + ' Fail 🔴)',
                 'Lines of Code (NLOC)'
             );
 
-            var container = document.getElementById('top-nloc-functions-chart');
-            if (!container) return;
-            topNlocChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topNlocChart, 'select', function() {
-                var sel = topNlocChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFunc = top10NlocData[sel[0].row];
-                    if (selectedFunc) {
-                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
-                    }
-                } else {
-                    clearFuncChartFilter();
-                }
-            });
-
-            topNlocChart.draw(data, options);
+            topNlocChart = renderTopHorizontalBarChart(container, chartData, options, 'func');
         }
 
         // --- Logical Lines of Code (SLOC) Distribution Chart ---
@@ -1563,7 +1849,8 @@
 
         // --- Top Longest Functions (SLOC) Chart ---
         function drawTopSLOCFunctionsChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-sloc-functions-chart');
+            if (!container) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
                 return (parseInt(b.sloc) || 0) - (parseInt(a.sloc) || 0);
@@ -1578,31 +1865,12 @@
                 chartData.push([f.name, sloc, 'color: ' + barColor, formatInt(sloc)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, false);
-
             var options = getTopChartOptions(
                 'Top 10 Longest Functions (SLOC) (≤ ' + th_sloc + ' Pass 🟢, > ' + th_sloc + ' Fail 🔴)',
                 'Logical Lines of Code (SLOC)'
             );
 
-            var container = document.getElementById('top-sloc-functions-chart');
-            if (!container) return;
-            topSlocChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topSlocChart, 'select', function() {
-                var sel = topSlocChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFunc = top10SlocData[sel[0].row];
-                    if (selectedFunc) {
-                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
-                    }
-                } else {
-                    clearFuncChartFilter();
-                }
-            });
-
-            topSlocChart.draw(data, options);
+            topSlocChart = renderTopHorizontalBarChart(container, chartData, options, 'func');
         }
 
         // --- Executable Lines of Code (ELOC) Distribution Chart ---
@@ -1671,7 +1939,8 @@
 
         // --- Top Longest Functions (ELOC) Chart ---
         function drawTopELOCFunctionsChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-eloc-functions-chart');
+            if (!container) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
                 return (parseInt(b.eloc) || 0) - (parseInt(a.eloc) || 0);
@@ -1686,31 +1955,12 @@
                 chartData.push([f.name, eloc, 'color: ' + barColor, formatInt(eloc)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, false);
-
             var options = getTopChartOptions(
                 'Top 10 Longest Functions (ELOC) (≤ ' + th_eloc + ' Pass 🟢, > ' + th_eloc + ' Fail 🔴)',
                 'Executable Lines of Code (ELOC)'
             );
 
-            var container = document.getElementById('top-eloc-functions-chart');
-            if (!container) return;
-            topElocChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topElocChart, 'select', function() {
-                var sel = topElocChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFunc = top10ElocData[sel[0].row];
-                    if (selectedFunc) {
-                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
-                    }
-                } else {
-                    clearFuncChartFilter();
-                }
-            });
-
-            topElocChart.draw(data, options);
+            topElocChart = renderTopHorizontalBarChart(container, chartData, options, 'func');
         }
 
         // --- Incomplete Decisions (If without Else) Distribution Chart ---
@@ -1779,7 +2029,8 @@
 
         // --- Top Functions with Highest Decisions without Else Chart ---
         function drawTopIfNoElseFunctionsChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-if_no_else-functions-chart');
+            if (!container) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
                 return (parseInt(b.if_no_else) || 0) - (parseInt(a.if_no_else) || 0);
@@ -1794,31 +2045,12 @@
                 chartData.push([f.name, cnt, 'color: ' + barColor, formatInt(cnt)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, false);
-
             var options = getTopChartOptions(
                 'Top 10 Functions with Highest Decisions without Else (≤ ' + th_if_no_else + ' Pass 🟢, > ' + th_if_no_else + ' Fail 🔴)',
                 'Decisions without Else (MISRA C Rule 15.7)'
             );
 
-            var container = document.getElementById('top-if_no_else-functions-chart');
-            if (!container) return;
-            topIfNoElseChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topIfNoElseChart, 'select', function() {
-                var sel = topIfNoElseChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFunc = top10IfNoElseData[sel[0].row];
-                    if (selectedFunc) {
-                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
-                    }
-                } else {
-                    clearFuncChartFilter();
-                }
-            });
-
-            topIfNoElseChart.draw(data, options);
+            topIfNoElseChart = renderTopHorizontalBarChart(container, chartData, options, 'func');
         }
 
         // --- Dynamic Function Comment Ratio (CDRP) Distribution Chart (5 Bins < TH, 5 Bins >= TH) ---
@@ -1895,7 +2127,8 @@
 
         // --- Top Lowest Comment Density (CDRP) Functions Chart ---
         function drawTopCommentRatioFunctionsChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-comment-ratio-functions-chart');
+            if (!container) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
                 return parseFloat(a.cdrp) - parseFloat(b.cdrp);
@@ -1910,31 +2143,12 @@
                 chartData.push([f.name, cdrp, 'color: ' + barColor, formatFloat(cdrp, 2) + '%']);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, true, '%');
-
             var options = getTopChartOptions(
                 'Top 10 Lowest Comment Density (CDRP) Functions (< ' + th_cdrp + '% Fail 🔴, ≥ ' + th_cdrp + '% Pass 🟢)',
                 'Function Comment Density CDRP (%)'
             );
 
-            var container = document.getElementById('top-comment-ratio-functions-chart');
-            if (!container) return;
-            topCrChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topCrChart, 'select', function() {
-                var sel = topCrChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFunc = top10CrData[sel[0].row];
-                    if (selectedFunc) {
-                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
-                    }
-                } else {
-                    clearFuncChartFilter();
-                }
-            });
-
-            topCrChart.draw(data, options);
+            topCrChart = renderTopHorizontalBarChart(container, chartData, options, 'func');
         }
 
         // --- Dynamic File Comment Ratio (CDRP) Distribution Chart (Files) ---
@@ -2011,7 +2225,8 @@
 
         // --- Top Lowest Comment Density (CDRP) Files Chart (Files) ---
         function drawTopFileCommentRatioFilesChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-file-comment-ratio-files-chart');
+            if (!container) return;
 
             var sortedFiles = [...obj_data].sort(function(a, b) {
                 return parseFloat(a.cdrp) - parseFloat(b.cdrp);
@@ -2026,32 +2241,13 @@
                 chartData.push([o.filename, cdrp, 'color: ' + barColor, formatFloat(cdrp, 2) + '%']);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, true, '%');
-
             var options = getTopChartOptions(
                 'Top 10 Lowest Comment Density (CDRP) Files (< ' + th_file_cdrp + '% Fail 🔴, ≥ ' + th_file_cdrp + '% Pass 🟢)',
                 'File Comment Density CDRP (%)',
                 'File Name'
             );
 
-            var container = document.getElementById('top-file-comment-ratio-files-chart');
-            if (!container) return;
-            topFileCrChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topFileCrChart, 'select', function() {
-                var sel = topFileCrChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFile = top10FileCrData[sel[0].row];
-                    if (selectedFile) {
-                        setObjChartFilter('file_exact', 'File: ' + selectedFile.filename, selectedFile.filename);
-                    }
-                } else {
-                    clearObjChartFilter();
-                }
-            });
-
-            topFileCrChart.draw(data, options);
+            topFileCrChart = renderTopHorizontalBarChart(container, chartData, options, 'obj');
         }
 
         // --- Function Parameters Distribution Chart (HIS_PARAM) ---
@@ -2120,7 +2316,8 @@
 
         // --- Top Functions by Parameters (PARAM) Chart ---
         function drawTopParamsFunctionsChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-params-functions-chart');
+            if (!container) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
                 return (parseInt(b.pcnt) || 0) - (parseInt(a.pcnt) || 0);
@@ -2135,31 +2332,12 @@
                 chartData.push([f.name, pcnt, 'color: ' + barColor, formatInt(pcnt)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, false);
-
             var options = getTopChartOptions(
                 'Top 10 Functions by Parameters (≤ ' + th_param + ' Pass 🟢, > ' + th_param + ' Fail 🔴)',
                 'Parameter Count (HIS_PARAM)'
             );
 
-            var container = document.getElementById('top-params-functions-chart');
-            if (!container) return;
-            topParamChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topParamChart, 'select', function() {
-                var sel = topParamChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFunc = top10ParamData[sel[0].row];
-                    if (selectedFunc) {
-                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
-                    }
-                } else {
-                    clearFuncChartFilter();
-                }
-            });
-
-            topParamChart.draw(data, options);
+            topParamChart = renderTopHorizontalBarChart(container, chartData, options, 'func');
         }
 
         // --- Return Points Distribution Chart (HIS_RETURN) ---
@@ -2228,7 +2406,8 @@
 
         // --- Top Functions by Return Points (RETURN) Chart ---
         function drawTopReturnsFunctionsChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-returns-functions-chart');
+            if (!container) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
                 return (parseInt(b.ret_cnt) || 0) - (parseInt(a.ret_cnt) || 0);
@@ -2243,31 +2422,12 @@
                 chartData.push([f.name, ret, 'color: ' + barColor, formatInt(ret)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, false);
-
             var options = getTopChartOptions(
                 'Top 10 Functions by Return Points (≤ ' + th_return + ' Pass 🟢, > ' + th_return + ' Fail 🔴)',
                 'Return Points (HIS_RETURN)'
             );
 
-            var container = document.getElementById('top-returns-functions-chart');
-            if (!container) return;
-            topRetChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topRetChart, 'select', function() {
-                var sel = topRetChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFunc = top10RetData[sel[0].row];
-                    if (selectedFunc) {
-                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
-                    }
-                } else {
-                    clearFuncChartFilter();
-                }
-            });
-
-            topRetChart.draw(data, options);
+            topRetChart = renderTopHorizontalBarChart(container, chartData, options, 'func');
         }
 
         // --- Control Nesting Depth Distribution Chart (HIS_LEVEL) ---
@@ -2336,7 +2496,8 @@
 
         // --- Top Functions by Nesting Depth (LEVEL) Chart ---
         function drawTopNestingFunctionsChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-nesting-functions-chart');
+            if (!container) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
                 return (parseInt(b.nesting) || 0) - (parseInt(a.nesting) || 0);
@@ -2351,31 +2512,12 @@
                 chartData.push([f.name, nesting, 'color: ' + barColor, formatInt(nesting)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, false);
-
             var options = getTopChartOptions(
                 'Top 10 Functions by Nesting Depth (≤ ' + th_nesting + ' Pass 🟢, > ' + th_nesting + ' Fail 🔴)',
                 'Control Nesting Level (HIS_LEVEL)'
             );
 
-            var container = document.getElementById('top-nesting-functions-chart');
-            if (!container) return;
-            topNestingChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topNestingChart, 'select', function() {
-                var sel = topNestingChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFunc = top10NestingData[sel[0].row];
-                    if (selectedFunc) {
-                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
-                    }
-                } else {
-                    clearFuncChartFilter();
-                }
-            });
-
-            topNestingChart.draw(data, options);
+            topNestingChart = renderTopHorizontalBarChart(container, chartData, options, 'func');
         }
 
         // --- Executable Statements Distribution Chart (HIS_STMT) ---
@@ -2450,7 +2592,8 @@
 
         // --- Top Functions by Executable Statements (STMT) Chart ---
         function drawTopStmtFunctionsChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-stmt-functions-chart');
+            if (!container) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
                 return (parseInt(b.stmt_cnt) || 0) - (parseInt(a.stmt_cnt) || 0);
@@ -2465,31 +2608,12 @@
                 chartData.push([f.name, stmt, 'color: ' + barColor, formatInt(stmt)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, false);
-
             var options = getTopChartOptions(
                 'Top 10 Functions by Executable Statements (≤ ' + th_stmt + ' Pass 🟢, > ' + th_stmt + ' Fail 🔴)',
                 'Executable Statements (HIS_STMT)'
             );
 
-            var container = document.getElementById('top-stmt-functions-chart');
-            if (!container) return;
-            topStmtChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topStmtChart, 'select', function() {
-                var sel = topStmtChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFunc = top10StmtData[sel[0].row];
-                    if (selectedFunc) {
-                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
-                    }
-                } else {
-                    clearFuncChartFilter();
-                }
-            });
-
-            topStmtChart.draw(data, options);
+            topStmtChart = renderTopHorizontalBarChart(container, chartData, options, 'func');
         }
 
         // --- Called Functions / Fan-Out Distribution Chart (HIS_CALLS) ---
@@ -2558,7 +2682,8 @@
 
         // --- Top Functions by Called Functions (CALLS) Chart ---
         function drawTopCallsFunctionsChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-calls-functions-chart');
+            if (!container) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
                 return (parseInt(b.calls_cnt) || 0) - (parseInt(a.calls_cnt) || 0);
@@ -2573,31 +2698,12 @@
                 chartData.push([f.name, calls, 'color: ' + barColor, formatInt(calls)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, false);
-
             var options = getTopChartOptions(
                 'Top 10 Functions by Called Functions (≤ ' + th_calls + ' Pass 🟢, > ' + th_calls + ' Fail 🔴)',
                 'Called Functions (HIS_CALLS)'
             );
 
-            var container = document.getElementById('top-calls-functions-chart');
-            if (!container) return;
-            topCallsChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topCallsChart, 'select', function() {
-                var sel = topCallsChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFunc = top10CallsData[sel[0].row];
-                    if (selectedFunc) {
-                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
-                    }
-                } else {
-                    clearFuncChartFilter();
-                }
-            });
-
-            topCallsChart.draw(data, options);
+            topCallsChart = renderTopHorizontalBarChart(container, chartData, options, 'func');
         }
 
         // --- Static Execution Paths Distribution Chart (HIS_PATH) ---
@@ -2672,7 +2778,8 @@
 
         // --- Top Functions by Static Execution Paths (PATH) Chart ---
         function drawTopPathsFunctionsChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-paths-functions-chart');
+            if (!container) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
                 return (parseInt(b.path_cnt) || 1) - (parseInt(a.path_cnt) || 1);
@@ -2687,31 +2794,12 @@
                 chartData.push([f.name, path, 'color: ' + barColor, formatInt(path)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, false);
-
             var options = getTopChartOptions(
                 'Top 10 Functions by Static Execution Paths (≤ ' + th_path + ' Pass 🟢, > ' + th_path + ' Fail 🔴)',
                 'Execution Paths (HIS_PATH)'
             );
 
-            var container = document.getElementById('top-paths-functions-chart');
-            if (!container) return;
-            topPathsChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topPathsChart, 'select', function() {
-                var sel = topPathsChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFunc = top10PathsData[sel[0].row];
-                    if (selectedFunc) {
-                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
-                    }
-                } else {
-                    clearFuncChartFilter();
-                }
-            });
-
-            topPathsChart.draw(data, options);
+            topPathsChart = renderTopHorizontalBarChart(container, chartData, options, 'func');
         }
 
         // --- Call Graph Depth Distribution Chart (CALL_DEPTH) ---
@@ -2783,7 +2871,8 @@
 
         // --- Top Functions by Call Graph Depth (CALL_DEPTH) Chart ---
         function drawTopCallDepthFunctionsChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-call-depth-functions-chart');
+            if (!container) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
                 return (parseInt(b.call_depth) || 1) - (parseInt(a.call_depth) || 1);
@@ -2798,31 +2887,12 @@
                 chartData.push([f.name, depth, 'color: ' + barColor, formatInt(depth)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, false);
-
             var options = getTopChartOptions(
                 'Top 10 Functions by Call Graph Depth (≤ ' + th_call_depth + ' Pass 🟢, > ' + th_call_depth + ' Fail 🔴)',
                 'Call Graph Depth (HIS_CALL_DEPTH)'
             );
 
-            var container = document.getElementById('top-call-depth-functions-chart');
-            if (!container) return;
-            topCallDepthChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topCallDepthChart, 'select', function() {
-                var sel = topCallDepthChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFunc = top10CallDepthData[sel[0].row];
-                    if (selectedFunc) {
-                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
-                    }
-                } else {
-                    clearFuncChartFilter();
-                }
-            });
-
-            topCallDepthChart.draw(data, options);
+            topCallDepthChart = renderTopHorizontalBarChart(container, chartData, options, 'func');
         }
 
         // --- Language Scope / Vocabulary Frequency (VOCF) Distribution Chart ---
@@ -2891,7 +2961,8 @@
 
         // --- Top Functions by Language Scope / Vocabulary Frequency (VOCF) Chart ---
         function drawTopVocfFunctionsChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-vocf-functions-chart');
+            if (!container) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
                 return (parseFloat(b.stmt_size) || 0) - (parseFloat(a.stmt_size) || 0);
@@ -2906,31 +2977,12 @@
                 chartData.push([f.name, size, 'color: ' + barColor, formatFloat(size, 2)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, true);
-
             var options = getTopChartOptions(
                 'Top 10 Functions by Language Scope / VOCF (≤ ' + th_vocf + ' Pass 🟢, > ' + th_vocf + ' Fail 🔴)',
                 'Language Scope (HIS_VOCF)'
             );
 
-            var container = document.getElementById('top-vocf-functions-chart');
-            if (!container) return;
-            topVocfChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topVocfChart, 'select', function() {
-                var sel = topVocfChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFunc = top10VocfData[sel[0].row];
-                    if (selectedFunc) {
-                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
-                    }
-                } else {
-                    clearFuncChartFilter();
-                }
-            });
-
-            topVocfChart.draw(data, options);
+            topVocfChart = renderTopHorizontalBarChart(container, chartData, options, 'func');
         }
 
         // --- GOTO Statements Distribution Chart ---
@@ -2999,7 +3051,8 @@
 
         // --- Top Functions with Highest GOTO Statements Chart ---
         function drawTopGotoFunctionsChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-goto-functions-chart');
+            if (!container) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
                 return (parseInt(b.goto_cnt) || 0) - (parseInt(a.goto_cnt) || 0);
@@ -3014,31 +3067,12 @@
                 chartData.push([f.name, cnt, 'color: ' + barColor, formatInt(cnt)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, false);
-
             var options = getTopChartOptions(
                 'Top 10 Functions with Highest GOTO Statements (= ' + th_goto + ' Pass 🟢, > ' + th_goto + ' Fail 🔴)',
                 'GOTO Statements (HIS_GOTO)'
             );
 
-            var container = document.getElementById('top-goto-functions-chart');
-            if (!container) return;
-            topGotoChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topGotoChart, 'select', function() {
-                var sel = topGotoChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFunc = top10GotoData[sel[0].row];
-                    if (selectedFunc) {
-                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
-                    }
-                } else {
-                    clearFuncChartFilter();
-                }
-            });
-
-            topGotoChart.draw(data, options);
+            topGotoChart = renderTopHorizontalBarChart(container, chartData, options, 'func');
         }
 
         // --- Calling Functions / Fan-In Distribution Chart ---
@@ -3107,7 +3141,8 @@
 
         // --- Top Functions by Calling Functions / Fan-In Chart ---
         function drawTopCallingFunctionsChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-calling-functions-chart');
+            if (!container) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
                 return (parseInt(b.calling_cnt) || 0) - (parseInt(a.calling_cnt) || 0);
@@ -3122,31 +3157,12 @@
                 chartData.push([f.name, cnt, 'color: ' + barColor, formatInt(cnt)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, false);
-
             var options = getTopChartOptions(
                 'Top 10 Functions by Calling Functions / Fan-In (≤ ' + th_calling + ' Pass 🟢, > ' + th_calling + ' Fail 🔴)',
                 'Calling Functions (HIS_CALLING)'
             );
 
-            var container = document.getElementById('top-calling-functions-chart');
-            if (!container) return;
-            topCallingChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topCallingChart, 'select', function() {
-                var sel = topCallingChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFunc = top10CallingData[sel[0].row];
-                    if (selectedFunc) {
-                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
-                    }
-                } else {
-                    clearFuncChartFilter();
-                }
-            });
-
-            topCallingChart.draw(data, options);
+            topCallingChart = renderTopHorizontalBarChart(container, chartData, options, 'func');
         }
 
         // --- Recursions / Call Cycles Distribution Chart ---
@@ -3215,7 +3231,8 @@
 
         // --- Top Functions by Recursions / Call Cycles Chart ---
         function drawTopRecFunctionsChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-rec-functions-chart');
+            if (!container) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
                 return (parseInt(b.rec_cnt) || 0) - (parseInt(a.rec_cnt) || 0);
@@ -3230,31 +3247,12 @@
                 chartData.push([f.name, cnt, 'color: ' + barColor, formatInt(cnt)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, false);
-
             var options = getTopChartOptions(
                 'Top 10 Functions by Recursions / Call Cycles (= ' + th_rec + ' Pass 🟢, > ' + th_rec + ' Fail 🔴)',
                 'Recursion Count (HIS_REC)'
             );
 
-            var container = document.getElementById('top-rec-functions-chart');
-            if (!container) return;
-            topRecChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topRecChart, 'select', function() {
-                var sel = topRecChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFunc = top10RecData[sel[0].row];
-                    if (selectedFunc) {
-                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
-                    }
-                } else {
-                    clearFuncChartFilter();
-                }
-            });
-
-            topRecChart.draw(data, options);
+            topRecChart = renderTopHorizontalBarChart(container, chartData, options, 'func');
         }
 
         // --- Dead Code Statements Distribution Chart ---
@@ -3323,7 +3321,8 @@
 
         // --- Top Functions with Highest Dead Code Statements Chart ---
         function drawTopDeadFunctionsChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-dead-functions-chart');
+            if (!container) return;
 
             var sortedFuncs = [...func_data].sort(function(a, b) {
                 return (parseInt(b.dead_cnt) || 0) - (parseInt(a.dead_cnt) || 0);
@@ -3338,31 +3337,12 @@
                 chartData.push([f.name, cnt, 'color: ' + barColor, formatInt(cnt)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, false);
-
             var options = getTopChartOptions(
                 'Top 10 Functions with Highest Dead Code Statements (≤ ' + th_dead + ' Pass 🟢, > ' + th_dead + ' Fail 🔴)',
                 'Dead Statements (HIS_DEAD)'
             );
 
-            var container = document.getElementById('top-dead-functions-chart');
-            if (!container) return;
-            topDeadChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topDeadChart, 'select', function() {
-                var sel = topDeadChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFunc = top10DeadData[sel[0].row];
-                    if (selectedFunc) {
-                        setFuncChartFilter('func_exact', 'Function: ' + selectedFunc.name, selectedFunc.name);
-                    }
-                } else {
-                    clearFuncChartFilter();
-                }
-            });
-
-            topDeadChart.draw(data, options);
+            topDeadChart = renderTopHorizontalBarChart(container, chartData, options, 'func');
         }
 
         // --- Static Declarations in File Distribution Chart (Files) ---
@@ -3432,7 +3412,8 @@
 
         // --- Top Files by Static Declarations Chart (Files) ---
         function drawTopStaticDeclsFilesChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-static-decls-files-chart');
+            if (!container) return;
 
             var sortedFiles = [...obj_data].sort(function(a, b) {
                 return (parseInt(b.static_decls) || 0) - (parseInt(a.static_decls) || 0);
@@ -3447,32 +3428,13 @@
                 chartData.push([o.filename, cnt, 'color: ' + barColor, formatInt(cnt)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, false);
-
             var options = getTopChartOptions(
                 'Top 10 Files by Static Declarations (≤ ' + th_static_decls + ' Pass 🟢, > ' + th_static_decls + ' Fail 🔴)',
                 'Static Declarations (HIS_STATIC)',
                 'File Name'
             );
 
-            var container = document.getElementById('top-static-decls-files-chart');
-            if (!container) return;
-            topStaticDeclsChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topStaticDeclsChart, 'select', function() {
-                var sel = topStaticDeclsChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFile = top10StaticDeclsData[sel[0].row];
-                    if (selectedFile) {
-                        setObjChartFilter('file_exact', 'File: ' + selectedFile.filename, selectedFile.filename);
-                    }
-                } else {
-                    clearObjChartFilter();
-                }
-            });
-
-            topStaticDeclsChart.draw(data, options);
+            topStaticDeclsChart = renderTopHorizontalBarChart(container, chartData, options, 'obj');
         }
 
         // --- Total File Lines Distribution Chart (Files) ---
@@ -3542,7 +3504,8 @@
 
         // --- Top Largest Files by Line Count Chart (Files) ---
         function drawTopFileLinesFilesChart() {
-            if (!chartsLoaded) return;
+            var container = document.getElementById('top-file-lines-files-chart');
+            if (!container) return;
 
             var sortedFiles = [...obj_data].sort(function(a, b) {
                 var lA = parseInt(a.line_cnt) || parseInt(a.nloc) || 0;
@@ -3559,32 +3522,13 @@
                 chartData.push([o.filename, lines, 'color: ' + barColor, formatInt(lines)]);
             });
 
-            var data = google.visualization.arrayToDataTable(chartData);
-            formatGoogleChart(data, 1, false);
-
             var options = getTopChartOptions(
                 'Top 10 Largest Files by Line Count (≤ ' + th_file_lines + ' Pass 🟢, > ' + th_file_lines + ' Fail 🔴)',
                 'Total File Lines (HIS_LINE)',
                 'File Name'
             );
 
-            var container = document.getElementById('top-file-lines-files-chart');
-            if (!container) return;
-            topFileLinesChart = new google.visualization.BarChart(container);
-
-            google.visualization.events.addListener(topFileLinesChart, 'select', function() {
-                var sel = topFileLinesChart.getSelection();
-                if (sel.length > 0) {
-                    var selectedFile = top10FileLinesData[sel[0].row];
-                    if (selectedFile) {
-                        setObjChartFilter('file_exact', 'File: ' + selectedFile.filename, selectedFile.filename);
-                    }
-                } else {
-                    clearObjChartFilter();
-                }
-            });
-
-            topFileLinesChart.draw(data, options);
+            topFileLinesChart = renderTopHorizontalBarChart(container, chartData, options, 'obj');
         }
 
         // --- Chart Filtering Functions Table ---
@@ -3612,6 +3556,7 @@
             } else {
                 banner.style.display = 'none';
             }
+            syncTopBarActiveSelection();
         }
 
         // --- Filter, Sort & Render Functions Table ---
@@ -4082,6 +4027,7 @@
             } else {
                 banner.style.display = 'none';
             }
+            syncTopBarActiveSelection();
         }
 
         function applyObjFilters() {
@@ -4786,12 +4732,21 @@
             margin-bottom: 28px;
         }
 
+        .dashboard-section.dashboard-cards-row {
+            margin-bottom: 16px;
+        }
+
+        .dashboard-section.dashboard-cards-row + .dashboard-section.dashboard-cards-row {
+            margin-bottom: 28px;
+        }
+
         .metric-card {
             background-color: #ffffff;
             border: 1px solid var(--border-color);
             border-radius: 10px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.03), 0 4px 12px -2px rgba(15,23,42,0.04);
             padding: 16px 14px;
+            box-sizing: border-box;
             flex: 1 1 170px;
             min-width: 170px;
             text-align: center;
@@ -4860,6 +4815,261 @@
             transform: translateY(-2px);
             box-shadow: 0 6px 20px -3px rgba(15,23,42,0.08);
             border-color: #cbd5e1;
+        }
+
+        .chart-container.top-hbar-card {
+            height: auto;
+            min-height: 385px;
+        }
+
+        .top-hbar-chart {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            min-height: 355px;
+            height: 100%;
+            box-sizing: border-box;
+        }
+
+        .top-hbar-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.3;
+            margin: 0 0 6px 18px;
+            user-select: text;
+        }
+
+        .top-hbar-chart.has-swe4-badge .top-hbar-title {
+            padding-right: 112px;
+        }
+
+        .top-hbar-empty {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        .top-hbar-body {
+            flex: 1;
+            display: flex;
+            align-items: stretch;
+            min-height: 0;
+        }
+
+        .top-hbar-vaxis-title {
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
+            padding: 0 4px 28px 0;
+            user-select: none;
+            flex-shrink: 0;
+        }
+
+        .top-hbar-main {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .top-hbar-rows {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            gap: 2px;
+        }
+
+        .top-hbar-row {
+            display: flex;
+            align-items: stretch;
+            flex: 1 1 0;
+            max-height: 32px;
+            min-height: 24px;
+            border-radius: 4px;
+            transition: background-color 0.12s ease;
+        }
+
+        .top-hbar-row:hover {
+            background-color: #f8fafc;
+        }
+
+        .top-hbar-row.is-active {
+            background-color: #eff6ff;
+            box-shadow: inset 0 0 0 1px #93c5fd;
+        }
+
+        .top-hbar-label-cell {
+            width: var(--hbar-label-w, 200px);
+            max-width: 50%;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
+            padding: 1px 6px 1px 4px;
+            box-sizing: border-box;
+            text-align: right;
+            user-select: text;
+            -webkit-user-select: text;
+            cursor: text;
+        }
+
+        .top-hbar-name {
+            font-size: 11px;
+            font-weight: 500;
+            color: #1e293b;
+            line-height: 1.15;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            user-select: text;
+            -webkit-user-select: text;
+            cursor: text;
+        }
+
+        .top-hbar-copy-btn {
+            flex-shrink: 0;
+            width: 18px;
+            height: 18px;
+            padding: 0;
+            margin: 0;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            background: transparent;
+            color: #94a3b8;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0.35;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+        }
+
+        .top-hbar-row:hover .top-hbar-copy-btn {
+            opacity: 0.85;
+            color: #475569;
+        }
+
+        .top-hbar-copy-btn:hover {
+            opacity: 1 !important;
+            color: #2563eb !important;
+            background-color: #eff6ff;
+            border-color: #bfdbfe;
+        }
+
+        .top-hbar-track-cell {
+            position: relative;
+            flex: 1;
+            min-width: 90px;
+            margin-right: 14px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .top-hbar-grid-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .top-hbar-gridline {
+            position: absolute;
+            top: -2px;
+            bottom: -2px;
+            width: 1px;
+            background-color: #e2e8f0;
+        }
+
+        .top-hbar-gridline.is-baseline {
+            background-color: #94a3b8;
+        }
+
+        .top-hbar-bar-wrap {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        .top-hbar-fill {
+            flex: 0 0 auto;
+            height: 15px;
+            min-width: 2px;
+            border-radius: 0 3px 3px 0;
+            transition: filter 0.15s ease, transform 0.15s ease;
+        }
+
+        .top-hbar-track-cell:hover .top-hbar-fill {
+            filter: brightness(1.07) drop-shadow(0 1px 3px rgba(0,0,0,0.14));
+        }
+
+        .top-hbar-val {
+            flex: 0 0 auto;
+            margin-left: 5px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+            line-height: 1;
+        }
+
+        .top-hbar-footer {
+            margin-top: 3px;
+            user-select: none;
+        }
+
+        .top-hbar-ticks-row,
+        .top-hbar-haxis-row {
+            display: flex;
+            align-items: center;
+        }
+
+        .top-hbar-axis-spacer {
+            width: var(--hbar-label-w, 200px);
+            max-width: 50%;
+            flex-shrink: 0;
+        }
+
+        .top-hbar-ticks-track {
+            position: relative;
+            flex: 1;
+            height: 16px;
+            margin-right: 14px;
+        }
+
+        .top-hbar-tick {
+            position: absolute;
+            top: 1px;
+            transform: translateX(-50%);
+            font-size: 10.5px;
+            color: #64748b;
+            white-space: nowrap;
+        }
+
+        .top-hbar-haxis-title {
+            flex: 1;
+            margin-right: 14px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
+            line-height: 1.2;
+            margin-top: 2px;
         }
 
         /* SVG rounded bars and hover polish */
@@ -5496,22 +5706,14 @@
 
         <!-- Metrics Cards Dashboard -->
         <h3 id="dashboard-start" class="section-title">Metrics Dashboard</h3>
-        <div class="dashboard-section">
-            <div class="metric-card" onclick="scrollToElement('func_tbl_start')" style="cursor:pointer;" title="Click to view functions">
-                <h4>Total Functions</h4>
-                <p id="total-functions">0</p>
-            </div>
+        <div class="dashboard-section dashboard-cards-row">
             <div class="metric-card" onclick="scrollToElement('obj_tbl_start')" style="cursor:pointer;" title="Click to view files">
                 <h4>Total Files</h4>
                 <p id="total-files">0</p>
             </div>
-            <div class="metric-card" onclick="scrollToChart('complexity-distribution-chart', 'func_tbl_start')" style="cursor:pointer;" title="Click to view Cyclomatic Complexity">
-                <h4>Avg. Cyclomatic Complexity</h4>
-                <p id="avg-complexity">0.00</p>
-            </div>
-            <div class="metric-card" onclick="scrollToChart(has_file_comment_ratio ? 'file-comment-ratio-distribution-chart' : 'comment-ratio-distribution-chart', 'obj_tbl_start')" style="cursor:pointer;" title="Click to view Comment Density (CDRP)">
-                <h4>Overall Comment Ratio (CDRP)</h4>
-                <p id="overall-comment-ratio">0.00%</p>
+            <div class="metric-card" onclick="scrollToElement('func_tbl_start')" style="cursor:pointer;" title="Click to view functions">
+                <h4>Total Functions</h4>
+                <p id="total-functions">0</p>
             </div>
             <div class="metric-card" onclick="scrollToChart('nloc-distribution-chart', 'obj_tbl_start')" style="cursor:pointer;" title="Click to view Lines of Code">
                 <h4>Total Physical Lines (NLOC)</h4>
@@ -5525,13 +5727,23 @@
                 <h4>Total Executable Lines (ELOC)</h4>
                 <p id="total-eloc">0</p>
             </div>
-            <div class="metric-card card-violations" onclick="scrollToElement('func_tbl_start'); document.querySelector('#func-filter-group [data-filter=\'violations\']').click();" style="cursor:pointer;" title="Click to filter violations">
-                <h4>Total Threshold Violations</h4>
-                <p id="total-violations">0</p>
+        </div>
+        <div class="dashboard-section dashboard-cards-row">
+            <div class="metric-card" onclick="scrollToChart('complexity-distribution-chart', 'func_tbl_start')" style="cursor:pointer;" title="Click to view Cyclomatic Complexity">
+                <h4>Avg. Cyclomatic Complexity</h4>
+                <p id="avg-complexity">0.00</p>
+            </div>
+            <div class="metric-card" onclick="scrollToChart(has_file_comment_ratio ? 'file-comment-ratio-distribution-chart' : 'comment-ratio-distribution-chart', 'obj_tbl_start')" style="cursor:pointer;" title="Click to view Comment Density (CDRP)">
+                <h4>Overall Comment Ratio (CDRP)</h4>
+                <p id="overall-comment-ratio">0.00%</p>
             </div>
             <div class="metric-card card-compliance" id="card-overall-compliance" onclick="scrollToElement('limits_start')" style="cursor:pointer;" title="Click to view Threshold Limits compliance">
                 <h4>Overall Compliance</h4>
                 <p id="overall-compliance">0.00%</p>
+            </div>
+            <div class="metric-card card-violations" id="card-total-violations" onclick="scrollToElement('func_tbl_start'); document.querySelector('#func-filter-group [data-filter=\'violations\']').click();" style="cursor:pointer;" title="Click to filter violations">
+                <h4>Total Threshold Violations</h4>
+                <p id="total-violations">0</p>
             </div>
         </div>
 
