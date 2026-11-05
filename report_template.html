@@ -888,97 +888,116 @@
 
                 var passText = formatInt(passCount) + ' (' + passPct.toFixed(1) + '%)';
                 var failText = formatInt(failCount) + ' (' + failPct.toFixed(1) + '%)';
+                var splitPct = cfg.isLowerLimit ? failPct : passPct;
+                var thPrefix = cfg.isLowerLimit ? '≥ ' : '≤ ';
+                var showPassInBar = (passCount > 0 && (failCount === 0 || passPct >= 22));
+                var showPassBadge = (passCount > 0 && !showPassInBar);
+
+                var passTitle = formatInt(passCount) + ' ' + cfg.unitName + ' compliant (' + passPct.toFixed(1) + '%) - Click to filter';
+                var failTitle = formatInt(failCount) + ' violations (' + failPct.toFixed(1) + '%) - Click to filter';
+                var passOnClick = 'filterPassingFromRangeBar(\'' + cfg.scope + '\')';
+                var failOnClick = 'filterFromRangeBar(\'' + cfg.scope + '\', \'' + cfg.filterKey + '\')';
 
                 var html = '';
                 html += '<div class="range-bullet-wrapper">';
                 html += '  <div class="range-bullet-chart">';
+                html += '    <div class="range-bullet-header">';
 
                 if (cfg.isLowerLimit) {
-                    if (failCount === 0) {
-                        html += '    <div class="range-bullet-marker" style="left: 0%; transform: translateX(0);">';
-                        html += '      <span class="marker-val">' + escapeHtml(cfg.thresholdLabel) + '</span>';
-                        html += '      <span class="marker-arrow">▼</span>';
-                        html += '    </div>';
-                        html += '    <div class="range-bullet-track">';
-                        html += '      <div class="range-segment range-segment-pass" style="width: 100%;" onclick="filterPassingFromRangeBar(\'' + cfg.scope + '\')" title="' + formatInt(passCount) + ' ' + cfg.unitName + ' compliant (100%) - Click to filter">';
-                        html += '        ' + passText;
-                        html += '      </div>';
-                        html += '    </div>';
-                    } else if (passCount === 0) {
-                        html += '    <div class="range-bullet-marker" style="left: 100%; transform: translateX(-100%);">';
-                        html += '      <span class="marker-val">' + escapeHtml(cfg.thresholdLabel) + '</span>';
-                        html += '      <span class="marker-arrow">▼</span>';
-                        html += '    </div>';
-                        html += '    <div class="range-bullet-track">';
-                        html += '      <div class="range-segment range-segment-fail" style="width: 100%;" onclick="filterFromRangeBar(\'' + cfg.scope + '\', \'' + cfg.filterKey + '\')" title="' + formatInt(failCount) + ' violations (100%) - Click to filter">';
-                        html += '        ' + failText;
-                        html += '      </div>';
-                        html += '    </div>';
-                    } else {
-                        var visualFailW = failPct;
-                        var visualPassW = passPct;
-                        if (visualFailW < 18) { visualFailW = 18; visualPassW = 82; }
-                        else if (visualPassW < 18) { visualPassW = 18; visualFailW = 82; }
-
-                        html += '    <div class="range-bullet-marker" style="left: ' + visualFailW.toFixed(1) + '%;">';
-                        html += '      <span class="marker-val">' + escapeHtml(cfg.thresholdLabel) + '</span>';
-                        html += '      <span class="marker-arrow">▼</span>';
-                        html += '    </div>';
-                        html += '    <div class="range-bullet-track">';
-                        html += '      <div class="range-segment range-segment-fail" style="width: ' + visualFailW.toFixed(1) + '%;" onclick="filterFromRangeBar(\'' + cfg.scope + '\', \'' + cfg.filterKey + '\')" title="' + formatInt(failCount) + ' violations (' + failPct.toFixed(1) + '%) - Click to filter">';
-                        html += '        ' + failText;
-                        html += '      </div>';
-                        html += '      <div class="range-segment range-segment-pass" style="width: ' + visualPassW.toFixed(1) + '%;" onclick="filterPassingFromRangeBar(\'' + cfg.scope + '\')" title="' + formatInt(passCount) + ' ' + cfg.unitName + ' compliant (' + passPct.toFixed(1) + '%) - Click to filter">';
-                        html += '        ' + passText;
-                        html += '      </div>';
-                        html += '    </div>';
+                    if (failCount > 0) {
+                        html += '      <span class="range-violation-badge range-badge-left" onclick="' + failOnClick + '" title="' + failTitle + '">' + failText + '</span>';
+                    }
+                    html += '      <span class="marker-val" data-split-pct="' + splitPct.toFixed(2) + '" title="Threshold: ' + escapeHtml(thPrefix + cfg.thresholdLabel) + '">' + escapeHtml(cfg.thresholdLabel) + '</span>';
+                    if (showPassBadge) {
+                        html += '      <span class="range-pass-badge range-badge-right" onclick="' + passOnClick + '" title="' + passTitle + '">' + passText + '</span>';
                     }
                 } else {
-                    if (failCount === 0) {
-                        html += '    <div class="range-bullet-marker" style="left: 100%; transform: translateX(-100%);">';
-                        html += '      <span class="marker-val">' + escapeHtml(cfg.thresholdLabel) + '</span>';
-                        html += '      <span class="marker-arrow">▼</span>';
-                        html += '    </div>';
-                        html += '    <div class="range-bullet-track">';
-                        html += '      <div class="range-segment range-segment-pass" style="width: 100%;" onclick="filterPassingFromRangeBar(\'' + cfg.scope + '\')" title="' + formatInt(passCount) + ' ' + cfg.unitName + ' compliant (100%) - Click to filter">';
-                        html += '        ' + passText;
-                        html += '      </div>';
-                        html += '    </div>';
-                    } else if (passCount === 0) {
-                        html += '    <div class="range-bullet-marker" style="left: 0%; transform: translateX(0);">';
-                        html += '      <span class="marker-val">' + escapeHtml(cfg.thresholdLabel) + '</span>';
-                        html += '      <span class="marker-arrow">▼</span>';
-                        html += '    </div>';
-                        html += '    <div class="range-bullet-track">';
-                        html += '      <div class="range-segment range-segment-fail" style="width: 100%;" onclick="filterFromRangeBar(\'' + cfg.scope + '\', \'' + cfg.filterKey + '\')" title="' + formatInt(failCount) + ' violations (100%) - Click to filter">';
-                        html += '        ' + failText;
-                        html += '      </div>';
-                        html += '    </div>';
-                    } else {
-                        var visualPassW = passPct;
-                        var visualFailW = failPct;
-                        if (visualFailW < 18) { visualFailW = 18; visualPassW = 82; }
-                        else if (visualPassW < 18) { visualPassW = 18; visualFailW = 82; }
-
-                        html += '    <div class="range-bullet-marker" style="left: ' + visualPassW.toFixed(1) + '%;">';
-                        html += '      <span class="marker-val">' + escapeHtml(cfg.thresholdLabel) + '</span>';
-                        html += '      <span class="marker-arrow">▼</span>';
-                        html += '    </div>';
-                        html += '    <div class="range-bullet-track">';
-                        html += '      <div class="range-segment range-segment-pass" style="width: ' + visualPassW.toFixed(1) + '%;" onclick="filterPassingFromRangeBar(\'' + cfg.scope + '\')" title="' + formatInt(passCount) + ' ' + cfg.unitName + ' compliant (' + passPct.toFixed(1) + '%) - Click to filter">';
-                        html += '        ' + passText;
-                        html += '      </div>';
-                        html += '      <div class="range-segment range-segment-fail" style="width: ' + visualFailW.toFixed(1) + '%;" onclick="filterFromRangeBar(\'' + cfg.scope + '\', \'' + cfg.filterKey + '\')" title="' + formatInt(failCount) + ' violations (' + failPct.toFixed(1) + '%) - Click to filter">';
-                        html += '        ' + failText;
-                        html += '      </div>';
-                        html += '    </div>';
+                    if (showPassBadge) {
+                        html += '      <span class="range-pass-badge range-badge-left" onclick="' + passOnClick + '" title="' + passTitle + '">' + passText + '</span>';
+                    }
+                    html += '      <span class="marker-val" data-split-pct="' + splitPct.toFixed(2) + '" title="Threshold: ' + escapeHtml(thPrefix + cfg.thresholdLabel) + '">' + escapeHtml(cfg.thresholdLabel) + '</span>';
+                    if (failCount > 0) {
+                        html += '      <span class="range-violation-badge range-badge-right" onclick="' + failOnClick + '" title="' + failTitle + '">' + failText + '</span>';
                     }
                 }
 
+                html += '    </div>';
+                html += '    <div class="range-bullet-track">';
+
+                if (cfg.isLowerLimit) {
+                    if (failCount > 0) {
+                        var failStyleL = (passCount === 0)
+                            ? 'width: 100%;'
+                            : 'width: ' + failPct.toFixed(2) + '%; min-width: 5px; border-right: 1.5px solid #0f172a;';
+                        html += '      <div class="range-segment range-segment-fail" style="' + failStyleL + '" onclick="' + failOnClick + '" title="' + failTitle + '"></div>';
+                    }
+                    if (passCount > 0) {
+                        var passStyleR = (failCount === 0)
+                            ? 'width: 100%;'
+                            : 'width: ' + passPct.toFixed(2) + '%; min-width: 4px;';
+                        html += '      <div class="range-segment range-segment-pass" style="' + passStyleR + '" onclick="' + passOnClick + '" title="' + passTitle + '">';
+                        html += showPassInBar ? passText : '';
+                        html += '      </div>';
+                    }
+                } else {
+                    if (passCount > 0) {
+                        var passStyleL = (failCount === 0)
+                            ? 'width: 100%;'
+                            : 'width: ' + passPct.toFixed(2) + '%; min-width: 4px;';
+                        html += '      <div class="range-segment range-segment-pass" style="' + passStyleL + '" onclick="' + passOnClick + '" title="' + passTitle + '">';
+                        html += showPassInBar ? passText : '';
+                        html += '      </div>';
+                    }
+                    if (failCount > 0) {
+                        var failStyleR = (passCount === 0)
+                            ? 'width: 100%;'
+                            : 'width: ' + failPct.toFixed(2) + '%; min-width: 5px; border-left: 1.5px solid #0f172a;';
+                        html += '      <div class="range-segment range-segment-fail" style="' + failStyleR + '" onclick="' + failOnClick + '" title="' + failTitle + '"></div>';
+                    }
+                }
+
+                html += '    </div>';
                 html += '  </div>';
                 html += '</div>';
 
                 cell.innerHTML = html;
+            });
+
+            positionThresholdRangeHeaders();
+            if (!window._rangeBarResizeBound) {
+                window._rangeBarResizeBound = true;
+                window.addEventListener('resize', positionThresholdRangeHeaders);
+            }
+        }
+
+        function positionThresholdRangeHeaders() {
+            var headers = document.querySelectorAll('.range-bullet-header');
+            headers.forEach(function(hdr) {
+                var marker = hdr.querySelector('.marker-val');
+                if (!marker) return;
+                var w = hdr.offsetWidth;
+                var mw = marker.offsetWidth;
+                var splitPct = parseFloat(marker.getAttribute('data-split-pct'));
+                if (isNaN(splitPct)) splitPct = 100;
+
+                if (w <= 0) {
+                    marker.style.left = splitPct.toFixed(1) + '%';
+                    marker.style.transform = splitPct >= 99 ? 'translateX(-100%)' : (splitPct <= 1 ? 'translateX(0)' : 'translateX(-50%)');
+                    return;
+                }
+
+                var leftBadge = hdr.querySelector('.range-badge-left');
+                var rightBadge = hdr.querySelector('.range-badge-right');
+                var minLeft = leftBadge ? (leftBadge.offsetWidth + 5) : 0;
+                var maxLeft = rightBadge ? (w - rightBadge.offsetWidth - mw - 5) : (w - mw);
+                if (maxLeft < minLeft) {
+                    maxLeft = minLeft;
+                }
+
+                var desiredLeft = (splitPct / 100) * w - (mw / 2);
+                var clampedLeft = Math.max(minLeft, Math.min(maxLeft, desiredLeft));
+                marker.style.left = clampedLeft.toFixed(1) + 'px';
+                marker.style.transform = 'none';
             });
         }
 
@@ -5244,38 +5263,78 @@
 
         .range-bullet-chart {
             position: relative;
-            margin-top: 18px;
             width: 100%;
         }
 
-        .range-bullet-marker {
-            position: absolute;
-            top: -18px;
-            transform: translateX(-50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            pointer-events: none;
-            z-index: 2;
+        .range-bullet-header {
+            position: relative;
+            height: 18px;
+            margin-bottom: 3px;
+            width: 100%;
         }
 
-        .range-bullet-marker .marker-val {
+        .range-bullet-header .marker-val {
+            position: absolute;
+            top: 0;
             font-size: 9.5px;
             font-weight: 700;
             background: #0f172a;
             color: #ffffff;
-            padding: 1px 5px;
+            padding: 2px 6px;
             border-radius: 3px;
             white-space: nowrap;
-            line-height: 1.15;
+            line-height: 1.2;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+            user-select: none;
+            z-index: 2;
         }
 
-        .range-bullet-marker .marker-arrow {
-            font-size: 9px;
-            color: #0f172a;
-            line-height: 7px;
-            margin-top: -1px;
+        .range-violation-badge,
+        .range-pass-badge {
+            position: absolute;
+            top: 0;
+            font-size: 9.5px;
+            font-weight: 700;
+            color: #ffffff;
+            padding: 2px 6px;
+            border-radius: 3px;
+            white-space: nowrap;
+            line-height: 1.2;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.15s ease;
+            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+            z-index: 3;
+        }
+
+        .range-violation-badge {
+            background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 1px 3px rgba(220, 38, 38, 0.3);
+        }
+
+        .range-violation-badge:hover {
+            filter: brightness(1.12);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(220, 38, 38, 0.45);
+        }
+
+        .range-pass-badge {
+            background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 1px 3px rgba(5, 150, 105, 0.3);
+        }
+
+        .range-pass-badge:hover {
+            filter: brightness(1.12);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(5, 150, 105, 0.45);
+        }
+
+        .range-badge-right {
+            right: 0;
+        }
+
+        .range-badge-left {
+            left: 0;
         }
 
         .range-bullet-track {
@@ -5316,6 +5375,7 @@
 
         .range-segment-fail {
             background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+            padding: 0;
         }
 
         /* --- Toast Notification --- */
