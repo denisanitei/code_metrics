@@ -2159,17 +2159,13 @@ def _tokenize_and_structure_for_static_decls(source_code):
     return _normalize_static_decl_segment(_stack[0][0][1])
 
 
-def _extract_func_ptr_var_name(group_tokens):
-    _saw_ptr = False
-    _cur     = list(group_tokens)
+def _extract_grouped_declarator_name(group_tokens):
+    _cur = list(group_tokens)
     while _cur:
         _i = 0
         while _i < len(_cur):
             _t = _cur[_i]
-            if _t in ('*', '&', '&&'):
-                _saw_ptr = True
-                _i += 1
-            elif _t in _STATIC_DECL_PURE_QUALS:
+            if _t in ('*', '&', '&&') or _t in _STATIC_DECL_PURE_QUALS:
                 _i += 1
             elif (_i + 1) < len(_cur) and _cur[_i + 1] == '::':
                 _i += 2
@@ -2183,15 +2179,16 @@ def _extract_func_ptr_var_name(group_tokens):
             _cur = _cur[1:_c]
             continue
         _ident = _cur[0]
+        if _ident == 'operator':
+            _op_toks = []
+            for _ot in _cur[1:]:
+                if _ot == '(':
+                    break
+                _op_toks.append(str(_ot))
+            return 'operator' + ''.join(_op_toks)
         if not isinstance(_ident, str) or not (_ident[0].isalpha() or _ident[0] == '_'):
             return None
-        _after = _cur[1:]
-        while _after and _after[0] == '[':
-            _cb    = _find_matching_delim(_after, 0, len(_after), '[', ']')
-            _after = _after[_cb + 1:]
-        if _after and _after[0] == '(':
-            return None
-        return _ident if _saw_ptr else None
+        return _ident
     return None
 
 
@@ -2205,70 +2202,20 @@ def _extract_var_name_from_declarator(lhs_tokens):
         _before_p = _cur[:_open_p]
         if _before_p and _before_p[-1] == ')':
             _g_open = _find_matching_open_delim(_before_p, len(_before_p) - 1, '(', ')')
-            _fp_nm  = _extract_func_ptr_var_name(_before_p[_g_open + 1:-1])
+            _fp_nm  = _extract_grouped_declarator_name(_before_p[_g_open + 1:-1])
             if _fp_nm:
                 return _fp_nm
         elif not _before_p or all(_t in _STATIC_DECL_PURE_QUALS or _t in ('int', 'char', 'short', 'long', 'float', 'double', 'signed', 'unsigned', 'bool', '_Bool', 'void') for _t in _before_p):
             _cur = _cur[_open_p + 1:-1]
         else:
             _cur = _before_p
+    for _idx_c, _tok in enumerate(_cur):
+        if _tok == 'operator':
+            return 'operator' + ''.join(str(_x) for _x in _cur[_idx_c + 1:])
     for _tok in reversed(_cur):
         if isinstance(_tok, str) and (_tok[0].isalpha() or _tok[0] == '_') and _tok not in _STATIC_DECL_PURE_QUALS and _tok != '__AGGREGATE_BODY__':
             return _tok
     return None
-
-
-def _is_ctor_init_args(arg_tokens):
-    if not arg_tokens or arg_tokens == ['void']:
-        return False
-    _parts   = []
-    _cur     = []
-    _p_depth = 0
-    _b_depth = 0
-    _s_depth = 0
-    for _tok in arg_tokens:
-        if _tok == '(':
-            _p_depth += 1
-            _cur.append(_tok)
-        elif _tok == ')' and _p_depth > 0:
-            _p_depth -= 1
-            _cur.append(_tok)
-        elif _tok == '{':
-            _b_depth += 1
-            _cur.append(_tok)
-        elif _tok == '}' and _b_depth > 0:
-            _b_depth -= 1
-            _cur.append(_tok)
-        elif _tok == '[':
-            _s_depth += 1
-            _cur.append(_tok)
-        elif _tok == ']' and _s_depth > 0:
-            _s_depth -= 1
-            _cur.append(_tok)
-        elif _tok == ',' and _p_depth == 0 and _b_depth == 0 and _s_depth == 0:
-            _parts.append(_cur)
-            _cur = []
-        else:
-            _cur.append(_tok)
-    _parts.append(_cur)
-
-    for _arg in _parts:
-        if not _arg:
-            continue
-        _t0 = _arg[0]
-        if not isinstance(_t0, str):
-            continue
-        if _t0[0].isdigit() or (_t0.startswith('.') and len(_t0) > 1 and _t0[1].isdigit()):
-            return True
-        if _t0[0] in ('"', "'"):
-            return True
-        if _t0 in ('L', 'u', 'U', 'u8') and len(_arg) > 1 and isinstance(_arg[1], str) and _arg[1][0] in ('"', "'"):
-            return True
-        if _t0 in ('true', 'false', 'TRUE', 'FALSE', 'nullptr', 'NULL', 'NULL_PTR', 'STD_ON', 'STD_OFF'):
-            return True
-        if _t0 in ('+', '-', '!', '~', '&', '*'):
-            return True
-    return False
 
 
 def _extract_declarator_var_name(item_tokens, is_first_item):
@@ -2309,16 +2256,16 @@ def _extract_declarator_var_name(item_tokens, is_first_item):
     if _eq_idx != -1:
         _lhs = _item[:_eq_idx]
         _rhs = _item[_eq_idx + 1:]
-        if _rhs in (['delete'], ['default']):
+        if _rhs == ['delete']:
             return None
         return _extract_var_name_from_declarator(_lhs)
 
-    # Reject C++ trailing-return-type function prototypes: static auto f(int) -> int;
-    _p_depth  = 0
-    _b_depth  = 0
-    _s_depth  = 0
-    _saw_rp   = False
-    for _tok in _item:
+    # Strip C++ trailing return type: static auto f(int) -> int
+    _p_depth = 0
+    _b_depth = 0
+    _s_depth = 0
+    _saw_rp  = False
+    for _i, _tok in enumerate(_item):
         if _tok == '(':
             _p_depth += 1
         elif _tok == ')' and _p_depth > 0:
@@ -2334,7 +2281,8 @@ def _extract_declarator_var_name(item_tokens, is_first_item):
         elif _tok == ']' and _s_depth > 0:
             _s_depth -= 1
         elif _tok == '->' and _saw_rp and _p_depth == 0 and _b_depth == 0 and _s_depth == 0:
-            return None
+            _item = _item[:_i]
+            break
 
     # Strip trailing C++ post-parameter function qualifiers: const, volatile, noexcept(...), override, final, throw(...)
     while len(_item) >= 2:
@@ -2365,13 +2313,14 @@ def _extract_declarator_var_name(item_tokens, is_first_item):
     if _last == ')':
         _open_p   = _find_matching_open_delim(_item, len(_item) - 1, '(', ')')
         _before_p = _item[:_open_p]
-        _inside_p = _item[_open_p + 1:-1]
-        if _before_p and _before_p[-1] == ')':
+        if not _before_p:
+            return None
+        if _before_p[-1] == ')':
             _g_open = _find_matching_open_delim(_before_p, len(_before_p) - 1, '(', ')')
-            return _extract_func_ptr_var_name(_before_p[_g_open + 1:-1])
-        if _is_ctor_init_args(_inside_p):
-            return _extract_var_name_from_declarator(_before_p)
-        return None
+            if _g_open == 0 or _before_p[_g_open - 1] not in ('decltype', 'typeof', '__typeof__', 'alignas', '_Alignas'):
+                return _extract_grouped_declarator_name(_before_p[_g_open + 1:-1])
+            return None
+        return _extract_var_name_from_declarator(_before_p)
 
     if not isinstance(_last, str) or not (_last[0].isalpha() or _last[0] == '_') or _last in _STATIC_DECL_PURE_QUALS:
         return None
@@ -2623,6 +2572,8 @@ def _count_static_vars_in_seq(tokens, scope_seen=None):
                     _decl_toks.extend(tokens[_idx:_close_b + 1])
                     _idx = _close_b + 1
                     continue
+                if _has_static_spec and not _has_typedef and _decl_toks:
+                    _total += _count_static_vars_in_decl(_decl_toks, scope_seen)
                 _total          += _count_static_vars_in_seq(tokens[_idx + 1:_close_b], set())
                 _idx             = _close_b + 1
                 _ended_with_body = True
@@ -2652,11 +2603,11 @@ def _count_static_vars_in_seq(tokens, scope_seen=None):
 
 
 def compute_static_var_declarations(source_code):
-    ''' Count static variable declarations in a C/C++ translation unit,
-        excluding static functions, static function prototypes, inactive #if 0 blocks,
-        and deduplicating #if/#else branches and tentative file-scope declarations.
+    ''' Count unique static declarations (variables and functions) in a C/C++ translation unit,
+        deduplicating forward prototypes and tentative declarations against definitions in the same scope,
+        skipping inactive #if 0 blocks, and taking the max across mutually exclusive #if/#else branches.
     '''
-    if not source_code or ('static' not in source_code and 'STATIC' not in source_code):
+    if not source_code or ('static' not in source_code and 'STATIC' not in source_code and 'LOCAL_INLINE' not in source_code):
         return 0
     _tokens = _tokenize_and_structure_for_static_decls(source_code)
     return _count_static_vars_in_seq(_tokens, set())

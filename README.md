@@ -78,7 +78,7 @@ All parameters are specified as child keys under the `code_metrics` section of t
 | `dead_code_threshold` | `int` | `0` | HIS `DEAD` / stability | Maximum unreachable / dead code statements following unconditional termination. |
 | `call_depth_threshold` | `int` | `6` | OEM Call Graph Depth | Maximum call graph invocation depth starting from this function through its call hierarchy. OEM limit: `<= 6`. |
 | `file_lines_threshold` | `int` | `1200` | OEM File Size | Maximum total line count (including comments and blank lines) in a single translation unit. OEM limit: `<= 1200`. |
-| `static_declarations_threshold` | `int` | `20` | OEM Static Declarations | Maximum number of `static` variable declarations in a file. OEM limit: `<= 20`. |
+| `static_declarations_threshold` | `int` | `20` | OEM Static Declarations | Maximum number of unique `static` declarations (variables and functions) in a file. OEM limit: `<= 20`. |
 
 ---
 

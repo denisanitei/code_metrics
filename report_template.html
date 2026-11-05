@@ -5493,7 +5493,7 @@
                 <tr>
                     <td><a href="#static-decls-distribution-chart" class="metric-param-link" onclick="scrollToChart('static-decls-distribution-chart', 'obj_tbl_start'); return false;" title="Click to view Static Declarations Distribution chart">📊 Static Declarations in File (STATIC_DECLS)</a></td>
                     <td><strong>&le; {{TH_STATIC_DECLS}}</strong></td>
-                    <td>Files declaring &gt; {{TH_STATIC_DECLS}} static variables represent excessive file scope encapsulation and cohesion issues</td>
+                    <td>Files declaring &gt; {{TH_STATIC_DECLS}} static identifiers represent excessive file scope encapsulation and cohesion issues</td>
                     <td class="range-bar-cell" id="range-bar-static_decls"></td>
                 </tr>
                 {% endif %}
@@ -5770,22 +5770,22 @@
 
         {% if HAS_STATIC_DECLS is defined and HAS_STATIC_DECLS %}
         <div class="dashboard-section">
-            <div class="chart-container" title="SWE.4 Quality Gate Rule: Files declaring > {{TH_STATIC_DECLS}} static variables represent excessive file scope encapsulation and cohesion issues">
-                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: Files declaring > {{TH_STATIC_DECLS}} static variables represent excessive file scope encapsulation and cohesion issues">
+            <div class="chart-container" title="SWE.4 Quality Gate Rule: Files declaring > {{TH_STATIC_DECLS}} static identifiers represent excessive file scope encapsulation and cohesion issues">
+                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: Files declaring > {{TH_STATIC_DECLS}} static identifiers represent excessive file scope encapsulation and cohesion issues">
                     <span>🛡️ SWE.4 Rule</span>
                     <div class="tooltip-box">
                         <strong>SWE.4 Quality Gate Rule</strong>
-                        Files declaring &gt; {{TH_STATIC_DECLS}} static variables represent excessive file scope encapsulation and cohesion issues
+                        Files declaring &gt; {{TH_STATIC_DECLS}} static identifiers represent excessive file scope encapsulation and cohesion issues
                     </div>
                 </div>
                 <div id="static-decls-distribution-chart" style="width:100%; height:100%;"></div>
             </div>
-            <div class="chart-container" title="SWE.4 Quality Gate Rule: Files declaring > {{TH_STATIC_DECLS}} static variables represent excessive file scope encapsulation and cohesion issues">
-                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: Files declaring > {{TH_STATIC_DECLS}} static variables represent excessive file scope encapsulation and cohesion issues">
+            <div class="chart-container" title="SWE.4 Quality Gate Rule: Files declaring > {{TH_STATIC_DECLS}} static identifiers represent excessive file scope encapsulation and cohesion issues">
+                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: Files declaring > {{TH_STATIC_DECLS}} static identifiers represent excessive file scope encapsulation and cohesion issues">
                     <span>🛡️ SWE.4 Rule</span>
                     <div class="tooltip-box">
                         <strong>SWE.4 Quality Gate Rule</strong>
-                        Files declaring &gt; {{TH_STATIC_DECLS}} static variables represent excessive file scope encapsulation and cohesion issues
+                        Files declaring &gt; {{TH_STATIC_DECLS}} static identifiers represent excessive file scope encapsulation and cohesion issues
                     </div>
                 </div>
                 <div id="top-static-decls-files-chart" style="width:100%; height:100%;"></div>
