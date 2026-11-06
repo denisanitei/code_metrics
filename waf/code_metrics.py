@@ -3,10 +3,16 @@ import waflib
 from waflib.Task import Task
 from waflib import Node
 from waflib import Logs
+try:
+    from waflib import Options
+except ImportError:
+    Options = None
 from waflib.TaskGen import feature
 from waflib.TaskGen import before_method
 from waflib.TaskGen import after_method
 from lxml import etree
+import ast
+import json
 from json import dumps
 from jinja2 import Template
 import xml.etree.ElementTree as ET
@@ -119,6 +125,37 @@ _THRESHOLD_YAML_KEYS = (
     'if_without_else_threshold',
 )
 
+_BLOCKER_TRUE_VALUES = frozenset((
+    '1',
+    'true',
+    'yes',
+    'on',
+    'blocker',
+    'block',
+    'fail',
+    'error',
+))
+
+_BLOCKER_FALSE_VALUES = frozenset((
+    '0',
+    'false',
+    'no',
+    'off',
+    'non_blocker',
+    'non-blocker',
+    'nonblocker',
+    'pass',
+    'warn',
+    'warning',
+    'none',
+    '',
+))
+
+_GLOBAL_BLOCKER_KEYS = (
+    'code_metrics_blocker',
+    'all_thresholds_blocker',
+)
+
 
 def _has_configured_thresholds(yaml_opts):
     if not yaml_opts:
@@ -129,6 +166,135 @@ def _has_configured_thresholds(yaml_opts):
 def _get_opt(yaml_opts, key, default):
     _val = yaml_opts.get(key) if yaml_opts else None
     return _val if _val is not None else default
+
+
+def _parse_bool_blocker(value):
+    # parse a --params value into True (blocker), False (non-blocker), or None (unspecified)
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        _norm = value.strip().lower()
+        if _norm in _BLOCKER_TRUE_VALUES:
+            return True
+        if _norm in _BLOCKER_FALSE_VALUES:
+            return False
+        return False
+    return False
+
+
+def _parse_params_dict(raw_params):
+    # normalize Waf --params (dict, sequence, or string) into a lowercase-keyed flat dict
+    if not raw_params:
+        return {}
+    _parsed = None
+    if isinstance(raw_params, dict):
+        _parsed = raw_params
+    elif isinstance(raw_params, (list, tuple)):
+        _merged_seq = {}
+        for _item in raw_params:
+            _merged_seq.update(_parse_params_dict(_item))
+        return _merged_seq
+    elif isinstance(raw_params, str):
+        _text = raw_params.strip()
+        if not _text:
+            return {}
+        for _loader in (json.loads, ast.literal_eval):
+            try:
+                _candidate = _loader(_text)
+                if isinstance(_candidate, dict):
+                    _parsed = _candidate
+                    break
+            except Exception:
+                pass
+        if _parsed is None:
+            _parsed = {}
+            _inner = _text[1:-1].strip() if (_text.startswith('{') and _text.endswith('}')) else _text
+            for _chunk in _inner.replace(';', ',').split(','):
+                _chunk = _chunk.strip()
+                if not _chunk:
+                    continue
+                if '=' in _chunk:
+                    _k, _v = _chunk.split('=', 1)
+                elif ':' in _chunk:
+                    _k, _v = _chunk.split(':', 1)
+                else:
+                    continue
+                _parsed[_k.strip().strip('\'"')] = _v.strip().strip('\'"')
+    else:
+        return {}
+
+    _norm_map = {}
+    for _k, _v in _parsed.items():
+        _k_norm = str(_k).strip().lower()
+        if _k_norm in ('code_metrics', 'code_metrics_blockers', 'blockers') and isinstance(_v, dict):
+            for _sub_k, _sub_v in _v.items():
+                _norm_map[str(_sub_k).strip().lower()] = _sub_v
+        else:
+            _norm_map[_k_norm] = _v
+    return _norm_map
+
+
+def _extract_waf_params(context_obj):
+    # merge --params dictionaries from general (CLI Options / env / bld) to specific (tgen / task)
+    _candidates = []
+    if context_obj is not None:
+        _candidates.append(getattr(context_obj, 'init_waf_params', None))
+
+    _opt_mod = Options if Options is not None else getattr(waflib, 'Options', None)
+    if _opt_mod is not None:
+        _opt_obj = getattr(_opt_mod, 'options', None)
+        if _opt_obj is not None:
+            _candidates.append(getattr(_opt_obj, 'params', None))
+
+    if context_obj is not None:
+        _tgen = getattr(context_obj, 'generator', None)
+        _bld = getattr(_tgen, 'bld', None) if _tgen is not None else getattr(context_obj, 'bld', None)
+        if _bld is not None:
+            _env = getattr(_bld, 'env', None)
+            if _env is not None:
+                for _env_key in ('PARAMS', 'params'):
+                    try:
+                        if _env_key in _env:
+                            _candidates.append(_env[_env_key])
+                    except Exception:
+                        pass
+            _bld_opts = getattr(_bld, 'options', None)
+            if _bld_opts is not None:
+                _candidates.append(getattr(_bld_opts, 'params', None))
+            _candidates.append(getattr(_bld, 'params', None))
+        if _tgen is not None:
+            _candidates.append(getattr(_tgen, 'params', None))
+            _candidates.append(getattr(_tgen, 'waf_params', None))
+        _candidates.append(getattr(context_obj, 'params', None))
+        _candidates.append(getattr(context_obj, 'waf_params', None))
+
+    _merged = {}
+    for _cand in _candidates:
+        if _cand is not None:
+            _merged.update(_parse_params_dict(_cand))
+    return _merged
+
+
+def _is_suite_blocker(suite_cfg, waf_params):
+    # return True only if this metric suite is explicitly configured as a blocker in --params
+    if not waf_params:
+        return False
+    for _pkey in suite_cfg.get('param_keys', ()):
+        _k_lower = _pkey.lower()
+        if _k_lower in waf_params:
+            _decision = _parse_bool_blocker(waf_params[_k_lower])
+            if _decision is not None:
+                return _decision
+    for _gkey in _GLOBAL_BLOCKER_KEYS:
+        if _gkey in waf_params and not isinstance(waf_params[_gkey], dict):
+            _decision = _parse_bool_blocker(waf_params[_gkey])
+            if _decision is not None:
+                return _decision
+    return False
 
 
 """*************************************************************************************************
@@ -918,11 +1084,15 @@ def process_cc(self):
         [rep_html, rep_template_node],
         phase=26)
     _task_html.yaml_opts  = yaml_opts
-    _task_junit           = self.create_task(
+    _task_junit             = self.create_task(
         'cc_xml2junit',
         xml_path=rep_node,
         phase=27)
-    _task_junit.yaml_opts = yaml_opts
+    _task_junit.yaml_opts   = yaml_opts
+    _task_junit.target_name = getattr(self, 'target', 'code_metrics')
+    _init_params            = _extract_waf_params(self)
+    if _init_params:
+        _task_junit.init_waf_params = _init_params
 
 """*************************************************************************************************
 ****************************************************************************************************
@@ -1316,6 +1486,23 @@ class cc_html(Task):
 *************************************************************************************************"""
 class cc_xml2junit(Task):
     color = 'PINK'
+    def sig_vars(self):
+        super(cc_xml2junit, self).sig_vars()
+        _yaml_opts = getattr(self, 'yaml_opts', None)
+        if _yaml_opts is None and hasattr(self, 'generator') and hasattr(self.generator, 'code_metrics'):
+            _yaml_opts = self.generator.code_metrics
+        _waf_params = _extract_waf_params(self)
+        self.m.update(json.dumps(_yaml_opts or {}, sort_keys=True, default=str).encode('utf-8'))
+        self.m.update(json.dumps(_waf_params or {}, sort_keys=True, default=str).encode('utf-8'))
+        if hasattr(self, 'xml_path') and self.xml_path is not None:
+            _xml_p = self.xml_path.abspath() if hasattr(self.xml_path, 'abspath') else str(self.xml_path)
+            self.m.update(_xml_p.encode('utf-8'))
+            try:
+                with open(_xml_p, 'rb') as _fh:
+                    self.m.update(_fh.read())
+            except Exception:
+                pass
+
     def run(self):
         global CC_THRESHOLD
         global NLOC_THRESHOLD
@@ -1502,6 +1689,7 @@ class cc_xml2junit(Task):
         _metric_suites        = [
             {
                 "suite_name" : "Cyclomatic Complexity (CC)",
+                "param_keys" : ("cc_threshold", "cc_blocker"),
                 "is_active"  : (_yaml_opts.get('cc_threshold') is not None) if _opts_present else True,
                 "metric_key" : "cc",
                 "threshold"  : _th_cc,
@@ -1513,6 +1701,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Language Scope / Vocabulary Frequency (VOCF)",
+                "param_keys" : ("vocf_threshold", "vocf_blocker"),
                 "is_active"  : (_yaml_opts.get('vocf_threshold') is not None) if _opts_present else True,
                 "metric_key" : "vocf",
                 "threshold"  : _th_vocf,
@@ -1524,6 +1713,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Executable Statements (STMT)",
+                "param_keys" : ("stmt_threshold", "stmt_blocker"),
                 "is_active"  : (_yaml_opts.get('stmt_threshold') is not None) if _opts_present else True,
                 "metric_key" : "stmt",
                 "threshold"  : _th_stmt,
@@ -1535,6 +1725,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Control Nesting Depth (LEVEL)",
+                "param_keys" : ("nesting_depth_threshold", "nesting_blocker", "level_blocker"),
                 "is_active"  : (_yaml_opts.get('nesting_depth_threshold') is not None) if _opts_present else True,
                 "metric_key" : "nesting",
                 "threshold"  : _th_nest,
@@ -1546,6 +1737,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Calling Functions (CALLING)",
+                "param_keys" : ("calling_threshold", "calling_blocker"),
                 "is_active"  : (_yaml_opts.get('calling_threshold') is not None) if _opts_present else True,
                 "metric_key" : "calling",
                 "threshold"  : _th_calling,
@@ -1557,6 +1749,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Called Functions (CALLS)",
+                "param_keys" : ("calls_threshold", "calls_blocker"),
                 "is_active"  : (_yaml_opts.get('calls_threshold') is not None) if _opts_present else True,
                 "metric_key" : "calls",
                 "threshold"  : _th_calls,
@@ -1568,6 +1761,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Execution Paths (PATH)",
+                "param_keys" : ("path_threshold", "path_blocker"),
                 "is_active"  : (_yaml_opts.get('path_threshold') is not None) if _opts_present else True,
                 "metric_key" : "path",
                 "threshold"  : _th_path,
@@ -1579,6 +1773,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Transfer Parameters (PARAM)",
+                "param_keys" : ("param_threshold", "param_blocker"),
                 "is_active"  : (_yaml_opts.get('param_threshold') is not None) if _opts_present else True,
                 "metric_key" : "param",
                 "threshold"  : _th_param,
@@ -1590,6 +1785,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Return Points (RETURN)",
+                "param_keys" : ("return_threshold", "return_blocker"),
                 "is_active"  : (_yaml_opts.get('return_threshold') is not None) if _opts_present else True,
                 "metric_key" : "return",
                 "threshold"  : _th_return,
@@ -1601,6 +1797,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "GOTO Statements (GOTO)",
+                "param_keys" : ("goto_threshold", "goto_blocker"),
                 "is_active"  : (_yaml_opts.get('goto_threshold') is not None) if _opts_present else True,
                 "metric_key" : "goto",
                 "threshold"  : _th_goto,
@@ -1612,6 +1809,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Recursions (REC)",
+                "param_keys" : ("rec_threshold", "rec_blocker"),
                 "is_active"  : (_yaml_opts.get('rec_threshold') is not None) if _opts_present else True,
                 "metric_key" : "rec",
                 "threshold"  : _th_rec,
@@ -1623,6 +1821,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Dead Code Statements (DEAD)",
+                "param_keys" : ("unreachable_statements_threshold", "dead_code_threshold", "unreachable_statements_blocker", "dead_code_blocker", "dead_blocker"),
                 "is_active"  : ((_yaml_opts.get('unreachable_statements_threshold') is not None) or (_yaml_opts.get('dead_code_threshold') is not None)) if _opts_present else True,
                 "metric_key" : "dead",
                 "threshold"  : _th_dead,
@@ -1634,6 +1833,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Call Graph Depth (CALL_DEPTH)",
+                "param_keys" : ("call_depth_threshold", "call_depth_blocker"),
                 "is_active"  : (_yaml_opts.get('call_depth_threshold') is not None) if _opts_present else True,
                 "metric_key" : "call_depth",
                 "threshold"  : _th_call_depth,
@@ -1645,6 +1845,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Function Comment Ratio (CDRP)",
+                "param_keys" : ("min_comment_ratio", "min_comment_ratio_blocker", "comment_ratio_blocker", "cdrp_blocker"),
                 "is_active"  : (_yaml_opts.get('min_comment_ratio') is not None) if _opts_present else True,
                 "metric_key" : "cdrp",
                 "threshold"  : _th_cr,
@@ -1656,6 +1857,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Logical Lines of Code (SLOC)",
+                "param_keys" : ("sloc_threshold", "sloc_blocker"),
                 "is_active"  : (_yaml_opts.get('sloc_threshold') is not None) if _opts_present else False,
                 "metric_key" : "sloc",
                 "threshold"  : _th_sloc,
@@ -1667,6 +1869,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Executable Lines of Code (ELOC)",
+                "param_keys" : ("eloc_threshold", "eloc_blocker"),
                 "is_active"  : (_yaml_opts.get('eloc_threshold') is not None) if _opts_present else False,
                 "metric_key" : "eloc",
                 "threshold"  : _th_eloc,
@@ -1678,6 +1881,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Decisions without Else (IF_NO_ELSE)",
+                "param_keys" : ("if_without_else_threshold", "if_without_else_blocker"),
                 "is_active"  : (_yaml_opts.get('if_without_else_threshold') is not None) if _opts_present else False,
                 "metric_key" : "if_no_else",
                 "threshold"  : _th_if_no_else,
@@ -1689,6 +1893,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Lines of Code (NLOC)",
+                "param_keys" : ("nloc_threshold", "nloc_blocker"),
                 "is_active"  : (_yaml_opts.get('nloc_threshold') is not None) if _opts_present else True,
                 "metric_key" : "nloc",
                 "threshold"  : _th_nloc,
@@ -1700,6 +1905,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Total File Lines (FILE_LINES)",
+                "param_keys" : ("file_lines_threshold", "file_lines_blocker"),
                 "is_active"  : (_yaml_opts.get('file_lines_threshold') is not None) if _opts_present else True,
                 "metric_key" : "line_cnt",
                 "threshold"  : _th_file_lines,
@@ -1711,6 +1917,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Minimum File Comment Ratio (CDRP)",
+                "param_keys" : ("min_file_comment_ratio", "min_file_comment_ratio_blocker", "file_comment_ratio_blocker", "file_cdrp_blocker"),
                 "is_active"  : (_yaml_opts.get('min_file_comment_ratio') is not None) if _opts_present else True,
                 "metric_key" : "cdrp",
                 "threshold"  : _th_file_cr,
@@ -1722,6 +1929,7 @@ class cc_xml2junit(Task):
             },
             {
                 "suite_name" : "Static Declarations (STATIC_DECLS)",
+                "param_keys" : ("static_declarations_threshold", "static_declarations_blocker", "static_decls_blocker"),
                 "is_active"  : (_yaml_opts.get('static_declarations_threshold') is not None) if _opts_present else True,
                 "metric_key" : "static_decls",
                 "threshold"  : _th_static_decls,
@@ -1733,11 +1941,16 @@ class cc_xml2junit(Task):
             }
         ]
 
+        _waf_params           = _extract_waf_params(self)
+        _target_label         = getattr(self, 'target_name', None) or getattr(getattr(self, 'generator', None), 'target', 'code_metrics')
+
         _testsuites_elem      = etree.Element(
             "testsuites",
             name="Code Metrics")
         _total_tests          = 0
         _total_failures       = 0
+        _blocking_failures    = 0
+        _blocking_suites      = []
 
         for _suite_cfg in _metric_suites:
             if not _suite_cfg["is_active"]:
@@ -1763,6 +1976,7 @@ class cc_xml2junit(Task):
             _elem_label       = _suite_cfg["elem_type"]
             _metric_key       = _suite_cfg["metric_key"]
             _suite_name       = _suite_cfg["suite_name"]
+            _is_blocker       = _is_suite_blocker(_suite_cfg, _waf_params)
 
             for _data_item in _suite_cfg["data_items"]:
                 _suite_tests += 1
@@ -1831,6 +2045,16 @@ class cc_xml2junit(Task):
             _total_tests    += _suite_tests
             _total_failures += _suite_failures
 
+            if _suite_failures > 0 and _is_blocker:
+                _blocking_failures += _suite_failures
+                _rule_th_str        = ("%.2f%s" % (_th_val, _unit)) if _is_float else ("%s%s" % (_th_val, _unit))
+                _rule_str           = "%s %s" % (_suite_cfg["operator"], _rule_th_str)
+                _blocking_suites.append((
+                    _suite_name,
+                    _suite_cfg["param_keys"][0],
+                    _rule_str,
+                    _suite_failures))
+
         _testsuites_elem.set("tests", str(_total_tests))
         _testsuites_elem.set("failures", str(_total_failures))
         _testsuites_elem.set("errors", "0")
@@ -1841,7 +2065,26 @@ class cc_xml2junit(Task):
             _testsuites_elem,
             _junit_path)
 
-        _error = _total_failures
+        _error            = _total_failures
+        _non_blocking_cnt = _total_failures - _blocking_failures
+
+        if _blocking_failures > 0:
+            Logs.pprint(
+                'RED',
+                f"[code_metrics] Target '{_target_label}' FAILED quality gate: "
+                f"{_blocking_failures} blocking violation(s) across {len(_blocking_suites)} blocker threshold(s)"
+                + (f" (+ {_non_blocking_cnt} non-blocking finding(s))." if _non_blocking_cnt > 0 else "."))
+            for _b_name, _b_key, _b_rule, _b_cnt in _blocking_suites:
+                Logs.pprint(
+                    'RED',
+                    f"  -> [BLOCKER] {_b_name} ({_b_key}: {_b_rule}) — {_b_cnt} violation(s)")
+            return 1
+
+        if _total_failures > 0:
+            Logs.pprint(
+                'YELLOW',
+                f"[code_metrics] Target '{_target_label}' PASSED with {_total_failures} non-blocking finding(s) "
+                f"(no violated threshold marked as blocker in --params).")
         return 0
 
 

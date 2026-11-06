@@ -162,6 +162,29 @@ Running the `code_metrics` tool produces three main artifacts:
 
 ---
 
+## Waf `--params` Quality Gate Enforcement (Blocker Thresholds)
+
+When running `code_metrics` through Waf, all three reports (`<target>.xml`, `<target>.html`, and `junit_report.xml`) are always generated first with complete violation counts. Whether a threshold violation **fails the Waf target** depends on Waf's `--params` dictionary:
+
+* **Default (`--params` omitted or threshold not listed)**: Non-blocking — the Waf target **passes** (`exit code 0`) even if metric findings exist.
+* **Per-threshold blocker**: Set any YAML threshold key (e.g., `cc_threshold`, `goto_threshold`, `min_comment_ratio`, `static_declarations_threshold`) or `<metric>_blocker` alias to a truthy/blocker value (`True`, `1`, `"true"`, `"yes"`, `"blocker"`, `"block"`, `"fail"`). If that active suite has `> 0` violations, Waf logs a `RED` blocker summary and fails the target (`exit code 1`).
+* **Global master switch**: Set `code_metrics_blocker: True` to make all active thresholds blockers, while optionally overriding specific thresholds to non-blocking (`False`, `0`, `"false"`, `"non_blocker"`, `"pass"`, `"warn"`).
+
+### Waf CLI Examples
+
+```bash
+# 1. No --params specified: generates all reports and PASSES even when findings exist
+waf build
+
+# 2. Enforce target failure ONLY when Cyclomatic Complexity or GOTO thresholds have violations
+waf build --params="{'cc_threshold': True, 'goto_threshold': 'blocker'}"
+
+# 3. Enforce all active thresholds as blockers EXCEPT function comment ratio
+waf build --params="{'code_metrics_blocker': True, 'min_comment_ratio': False}"
+```
+
+---
+
 ## Standalone CLI Usage
 
 The core metric analyzer can also be executed directly via command line without the Waf build system:
