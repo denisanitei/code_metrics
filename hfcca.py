@@ -3524,11 +3524,22 @@ def generate_tokens(source_code):
             yield t, l
 
 def generate_tokens_from_code(source_code):
-    in_middle_of_empty_lines = False
+    in_middle_of_empty_lines = True
+    last_line = 1
     for (token, line) in tokens_from_code_with_multiple_newlines(source_code):
-        if token != '\n' or not in_middle_of_empty_lines:
+        last_line = line
+        _is_comment = token.startswith('/*') or token.startswith('//')
+        if _is_comment:
             yield token, line
-        in_middle_of_empty_lines = (token == '\n')
+            if '\n' in token and not in_middle_of_empty_lines:
+                yield '\n', line
+                in_middle_of_empty_lines = True
+        else:
+            if token != '\n' or not in_middle_of_empty_lines:
+                yield token, line
+            in_middle_of_empty_lines = (token == '\n')
+    if not in_middle_of_empty_lines:
+        yield '\n', last_line
 
 def tokens_from_code_with_multiple_newlines(source_code):
     index = 0
