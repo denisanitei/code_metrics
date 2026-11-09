@@ -40,8 +40,11 @@ _CODE_METRICS_CFG = {
 # Cyclomatic Complexity Threshold
 CC_THRESHOLD = 20
 
-# Non-Comment of Lines of Code Threshold
+# Non-Comment Lines of Code Threshold (Functions)
 NLOC_THRESHOLD = 200
+
+# File Non-Comment / Preprocessed Lines of Code Threshold (AbsInt PLINE)
+PLINE_THRESHOLD = 200
 
 # logical lines of code threshold
 SLOC_THRESHOLD = 70
@@ -103,6 +106,8 @@ IF_WITHOUT_ELSE_THRESHOLD = 0
 _THRESHOLD_YAML_KEYS = (
     'cc_threshold',
     'nloc_threshold',
+    'pline_threshold',
+    'file_nloc_threshold',
     'sloc_threshold',
     'eloc_threshold',
     'min_comment_ratio',
@@ -854,6 +859,7 @@ def process_cc(self):
     global CODE_METRICS_SAVED_MAPPING
     global CC_THRESHOLD
     global NLOC_THRESHOLD
+    global PLINE_THRESHOLD
     global SLOC_THRESHOLD
     global ELOC_THRESHOLD
     global MIN_COMMENT_RATIO
@@ -888,6 +894,7 @@ def process_cc(self):
 
     CC_THRESHOLD              = yaml_opts.get('cc_threshold', CC_THRESHOLD)
     NLOC_THRESHOLD            = yaml_opts.get('nloc_threshold', NLOC_THRESHOLD)
+    PLINE_THRESHOLD           = yaml_opts.get('pline_threshold', yaml_opts.get('file_nloc_threshold', PLINE_THRESHOLD))
     SLOC_THRESHOLD            = yaml_opts.get('sloc_threshold', SLOC_THRESHOLD)
     ELOC_THRESHOLD            = yaml_opts.get('eloc_threshold', ELOC_THRESHOLD)
     MIN_COMMENT_RATIO         = yaml_opts.get('min_comment_ratio', MIN_COMMENT_RATIO)
@@ -918,6 +925,12 @@ def process_cc(self):
         Logs.pprint("CYAN", "NLOC: %s" % NLOC_THRESHOLD)
     else:
         # nloc threshold not configured
+        pass
+
+    if 'pline_threshold' in yaml_opts or 'file_nloc_threshold' in yaml_opts:
+        Logs.pprint("CYAN", "PLINE (File NLOC): %s" % PLINE_THRESHOLD)
+    else:
+        # pline threshold not configured
         pass
 
     if 'sloc_threshold' in yaml_opts:
@@ -1389,6 +1402,7 @@ class cc_xml2html(Task):
         _opts_present       = _has_configured_thresholds(_yaml_opts)
         _has_cc             = (_yaml_opts.get('cc_threshold') is not None) if _opts_present else True
         _has_nloc           = (_yaml_opts.get('nloc_threshold') is not None) if _opts_present else True
+        _has_pline          = ((_yaml_opts.get('pline_threshold') is not None) or (_yaml_opts.get('file_nloc_threshold') is not None)) if _opts_present else True
         _has_sloc           = (_yaml_opts.get('sloc_threshold') is not None) if _opts_present else False
         _has_eloc           = (_yaml_opts.get('eloc_threshold') is not None) if _opts_present else False
         _has_cr             = (_yaml_opts.get('min_comment_ratio') is not None) if _opts_present else True
@@ -1419,6 +1433,7 @@ class cc_xml2html(Task):
                         FUNC_DATA=dumps(list(_func_data.values())),
                         TH_CC=_get_opt(_yaml_opts, 'cc_threshold', CC_THRESHOLD),
                         TH_NLOC=_get_opt(_yaml_opts, 'nloc_threshold', NLOC_THRESHOLD),
+                        TH_PLINE=_get_opt(_yaml_opts, 'pline_threshold', _get_opt(_yaml_opts, 'file_nloc_threshold', PLINE_THRESHOLD)),
                         TH_SLOC=_get_opt(_yaml_opts, 'sloc_threshold', SLOC_THRESHOLD),
                         TH_ELOC=_get_opt(_yaml_opts, 'eloc_threshold', ELOC_THRESHOLD),
                         COMMENT_RATIO=_get_opt(_yaml_opts, 'min_comment_ratio', MIN_COMMENT_RATIO),
@@ -1440,6 +1455,7 @@ class cc_xml2html(Task):
                         TH_IF_NO_ELSE=_get_opt(_yaml_opts, 'if_without_else_threshold', IF_WITHOUT_ELSE_THRESHOLD),
                         HAS_CC=_has_cc,
                         HAS_NLOC=_has_nloc,
+                        HAS_PLINE=_has_pline,
                         HAS_SLOC=_has_sloc,
                         HAS_ELOC=_has_eloc,
                         HAS_COMMENT_RATIO=_has_cr,
@@ -1506,6 +1522,7 @@ class cc_xml2junit(Task):
     def run(self):
         global CC_THRESHOLD
         global NLOC_THRESHOLD
+        global PLINE_THRESHOLD
         global SLOC_THRESHOLD
         global ELOC_THRESHOLD
         global MIN_COMMENT_RATIO
@@ -1573,6 +1590,7 @@ class cc_xml2junit(Task):
         _th_cr                = float(_get_opt(_yaml_opts, 'min_comment_ratio', MIN_COMMENT_RATIO))
         _th_file_cr           = float(_get_opt(_yaml_opts, 'min_file_comment_ratio', MIN_FILE_COMMENT_RATIO))
         _th_nloc              = _get_opt(_yaml_opts, 'nloc_threshold', NLOC_THRESHOLD)
+        _th_pline             = _get_opt(_yaml_opts, 'pline_threshold', _get_opt(_yaml_opts, 'file_nloc_threshold', PLINE_THRESHOLD))
         _th_sloc              = _get_opt(_yaml_opts, 'sloc_threshold', SLOC_THRESHOLD)
         _th_eloc              = _get_opt(_yaml_opts, 'eloc_threshold', ELOC_THRESHOLD)
         _th_file_lines        = _get_opt(_yaml_opts, 'file_lines_threshold', FILE_LINES_THRESHOLD)
@@ -1897,6 +1915,18 @@ class cc_xml2junit(Task):
                 "is_active"  : (_yaml_opts.get('nloc_threshold') is not None) if _opts_present else True,
                 "metric_key" : "nloc",
                 "threshold"  : _th_nloc,
+                "operator"   : "<=",
+                "is_float"   : False,
+                "unit"       : "",
+                "elem_type"  : "Function",
+                "data_items" : _funcs_data
+            },
+            {
+                "suite_name" : "File Lines of Code (PLINE)",
+                "param_keys" : ("pline_threshold", "file_nloc_threshold", "pline_blocker", "file_nloc_blocker"),
+                "is_active"  : ((_yaml_opts.get('pline_threshold') is not None) or (_yaml_opts.get('file_nloc_threshold') is not None)) if _opts_present else True,
+                "metric_key" : "nloc",
+                "threshold"  : _th_pline,
                 "operator"   : "<=",
                 "is_float"   : False,
                 "unit"       : "",

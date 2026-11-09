@@ -13,6 +13,7 @@
         var th_cdrp = {{COMMENT_RATIO}};
         var th_file_cdrp = {{FILE_COMMENT_RATIO if FILE_COMMENT_RATIO is defined else 10}};
         var th_nloc = {{TH_NLOC}};
+        var th_pline = {{TH_PLINE if TH_PLINE is defined else 200}};
         var th_sloc = {{TH_SLOC if TH_SLOC is defined else 70}};
         var th_eloc = {{TH_ELOC if TH_ELOC is defined else 50}};
         var th_if_no_else = {{TH_IF_NO_ELSE if TH_IF_NO_ELSE is defined else 0}};
@@ -34,6 +35,7 @@
         var git_hash = "{{GIT_HASH}}";
         var has_cc = {{ 'true' if (HAS_CC is defined and HAS_CC) else 'false' }};
         var has_nloc = {{ 'true' if (HAS_NLOC is defined and HAS_NLOC) else 'false' }};
+        var has_pline = {{ 'true' if (HAS_PLINE is defined and HAS_PLINE) else 'false' }};
         var has_sloc = {{ 'true' if (HAS_SLOC is defined and HAS_SLOC) else 'false' }};
         var has_eloc = {{ 'true' if (HAS_ELOC is defined and HAS_ELOC) else 'false' }};
         var has_comment_ratio = {{ 'true' if (HAS_COMMENT_RATIO is defined and HAS_COMMENT_RATIO) else 'false' }};
@@ -575,6 +577,8 @@
         var topNestingChart = null;
         var nlocChart = null;
         var topNlocChart = null;
+        var plineChart = null;
+        var topPlineChart = null;
         var slocChart = null;
         var topSlocChart = null;
         var elocChart = null;
@@ -603,6 +607,7 @@
         var callsBinsData = [];
         var nestingBinsData = [];
         var nlocBinsData = [];
+        var plineBinsData = [];
         var slocBinsData = [];
         var elocBinsData = [];
         var ifNoElseBinsData = [];
@@ -625,6 +630,7 @@
         var top10CallsData = [];
         var top10NestingData = [];
         var top10NlocData = [];
+        var top10PlineData = [];
         var top10SlocData = [];
         var top10ElocData = [];
         var top10IfNoElseData = [];
@@ -673,6 +679,7 @@
             if (has_calls) drawTopCallsFunctionsChart();
             if (has_nesting) drawTopNestingFunctionsChart();
             if (has_nloc) drawTopNLOCFunctionsChart();
+            if (has_pline) drawTopPlineFilesChart();
             if (has_sloc) drawTopSLOCFunctionsChart();
             if (has_eloc) drawTopELOCFunctionsChart();
             if (has_if_no_else) drawTopIfNoElseFunctionsChart();
@@ -771,6 +778,10 @@
             if (has_nloc) {
                 drawNLOCDistributionChart();
                 drawTopNLOCFunctionsChart();
+            }
+            if (has_pline) {
+                drawPlineDistributionChart();
+                drawTopPlineFilesChart();
             }
             if (has_sloc) {
                 drawSLOCDistributionChart();
@@ -874,7 +885,7 @@
                 totalELOC += (parseInt(o.eloc) || 0);
                 totalComments += parseInt(o.ccnt);
                 var isFileViol = (
-                    (has_nloc && nloc > th_nloc) ||
+                    (has_pline && nloc > th_pline) ||
                     (has_file_comment_ratio && cdrp < th_file_cdrp) ||
                     (has_file_lines && line_cnt > th_file_lines) ||
                     (has_static_decls && static_decls > th_static_decls)
@@ -1130,10 +1141,21 @@
                 {
                     id: 'range-bar-nloc',
                     hasMetric: has_nloc,
-                    scope: 'obj',
+                    scope: 'func',
                     filterKey: 'nloc',
                     threshold: th_nloc,
                     thresholdLabel: String(th_nloc),
+                    isLowerLimit: false,
+                    getValue: function(f) { return parseInt(f.nloc, 10); },
+                    unitName: 'functions'
+                },
+                {
+                    id: 'range-bar-pline',
+                    hasMetric: has_pline,
+                    scope: 'obj',
+                    filterKey: 'nloc',
+                    threshold: th_pline,
+                    thresholdLabel: String(th_pline),
                     isLowerLimit: false,
                     getValue: function(o) { return parseInt(o.nloc, 10); },
                     unitName: 'files'
@@ -3531,6 +3553,106 @@
             topFileLinesChart = renderTopHorizontalBarChart(container, chartData, options, 'obj');
         }
 
+        // --- File Lines of Code Without Comments (PLINE) Distribution Chart (Files) ---
+        function drawPlineDistributionChart() {
+            if (!chartsLoaded) return;
+
+            var maxPline = 0;
+            obj_data.forEach(function(o) {
+                var val = parseInt(o.nloc) || 0;
+                if (val > maxPline) maxPline = val;
+            });
+
+            plineBinsData = generateComplexityBins(th_pline, maxPline);
+
+            obj_data.forEach(function(o) {
+                var val = parseInt(o.nloc) || 0;
+                for (var b = 0; b < plineBinsData.length; b++) {
+                    var bin = plineBinsData[b];
+                    if (bin.max === Infinity) {
+                        if (val >= bin.min) {
+                            bin.count++;
+                            break;
+                        }
+                    } else {
+                        if (val >= bin.min && val <= bin.max) {
+                            bin.count++;
+                            break;
+                        }
+                    }
+                }
+            });
+
+            var data = new google.visualization.DataTable();
+            data.addColumn('string', 'File PLINE (NLOC)');
+            data.addColumn('number', 'Files');
+            data.addColumn({type: 'string', role: 'style'});
+            data.addColumn({type: 'string', role: 'annotation'});
+
+            plineBinsData.forEach(function(bin) {
+                data.addRow([
+                    bin.label,
+                    bin.count,
+                    'color: ' + bin.color,
+                    formatInt(bin.count)
+                ]);
+            });
+            formatGoogleChart(data, 1, false);
+
+            var options = getDistributionChartOptions(
+                'File Lines of Code (PLINE) Distribution (≤ ' + th_pline + ' Pass 🟢, > ' + th_pline + ' Fail 🔴)',
+                'File Non-Comment Lines of Code (PLINE)',
+                'Number of Files'
+            );
+
+            var container = document.getElementById('pline-distribution-chart');
+            if (!container) return;
+            plineChart = new google.visualization.ColumnChart(container);
+
+            google.visualization.events.addListener(plineChart, 'select', function() {
+                var sel = plineChart.getSelection();
+                if (sel.length > 0) {
+                    var selectedBin = plineBinsData[sel[0].row];
+                    if (selectedBin) {
+                        setObjChartFilter('pline_bin', 'File PLINE ' + selectedBin.label + (selectedBin.isViolation ? ' (Violation > ' + th_pline + ')' : ' (Passed ≤ ' + th_pline + ')'), selectedBin);
+                    }
+                } else {
+                    clearObjChartFilter();
+                }
+            });
+
+            plineChart.draw(data, options);
+        }
+
+        // --- Top Largest Files by Non-Comment Lines (PLINE) Chart (Files) ---
+        function drawTopPlineFilesChart() {
+            var container = document.getElementById('top-pline-files-chart');
+            if (!container) return;
+
+            var sortedFiles = [...obj_data].sort(function(a, b) {
+                var lA = parseInt(a.nloc) || 0;
+                var lB = parseInt(b.nloc) || 0;
+                return lB - lA;
+            });
+            var topN = 10;
+            top10PlineData = sortedFiles.slice(0, Math.min(topN, sortedFiles.length));
+
+            var chartData = [['File Name', 'File PLINE (NLOC)', { role: 'style' }, { role: 'annotation' }]];
+            top10PlineData.forEach(function(o) {
+                var nloc = parseInt(o.nloc) || 0;
+                var barColor = nloc > th_pline ? COLOR_FAIL : COLOR_PASS;
+                chartData.push([o.filename, nloc, 'color: ' + barColor, formatInt(nloc)]);
+            });
+
+            var options = getTopChartOptions(
+                'Top 10 Largest Files by Non-Comment Lines (PLINE) (≤ ' + th_pline + ' Pass 🟢, > ' + th_pline + ' Fail 🔴)',
+                'File Lines of Code (PLINE)',
+                'File Name'
+            );
+
+            topPlineChart = renderTopHorizontalBarChart(container, chartData, options, 'obj');
+        }
+
         // --- Chart Filtering Functions Table ---
         function setFuncChartFilter(type, label, value) {
             funcState.chartFilter = { type: type, label: label, value: value };
@@ -4059,6 +4181,14 @@
                             if (line_cnt < b.min || line_cnt > b.max) return false;
                         }
                     }
+                    if (cf.type === 'pline_bin') {
+                        var b = cf.value;
+                        if (b.max === Infinity) {
+                            if (nloc < b.min) return false;
+                        } else {
+                            if (nloc < b.min || nloc > b.max) return false;
+                        }
+                    }
                     if (cf.type === 'file_cr_bin') {
                         var b = cf.value;
                         if (b.isViolation) {
@@ -4074,7 +4204,7 @@
                 }
 
                 var isObjViol = (
-                    (has_nloc && nloc > th_nloc) ||
+                    (has_pline && nloc > th_pline) ||
                     (has_file_comment_ratio && cdrp < th_file_cdrp) ||
                     (has_file_lines && line_cnt > th_file_lines) ||
                     (has_static_decls && static_decls > th_static_decls)
@@ -4083,7 +4213,7 @@
                 if (objState.violationFilter === 'violations') {
                     if (!isObjViol) return false;
                 } else if (objState.violationFilter === 'nloc') {
-                    if (!(nloc > th_nloc)) return false;
+                    if (!(nloc > th_pline)) return false;
                 } else if (objState.violationFilter === 'cdrp') {
                     if (!(cdrp < th_file_cdrp)) return false;
                 } else if (objState.violationFilter === 'line_cnt') {
@@ -4156,12 +4286,12 @@
                 var line_cnt = parseInt(obj.line_cnt) || nloc;
                 var static_decls = parseInt(obj.static_decls) || 0;
                 var unreachable = parseInt(obj.unreachable_stmts) || 0;
-                var obj_nloc_class = has_nloc ? (nloc > th_nloc ? 'highlight-red' : 'highlight-green') : '';
+                var obj_nloc_class = has_pline ? (nloc > th_pline ? 'highlight-red' : 'highlight-green') : '';
                 var obj_cdrp_class = has_file_comment_ratio ? (cdrp < th_file_cdrp ? 'highlight-red' : 'highlight-green') : '';
                 var line_class = has_file_lines ? (line_cnt > th_file_lines ? 'highlight-red' : 'highlight-green') : '';
                 var static_class = has_static_decls ? (static_decls > th_static_decls ? 'highlight-red' : 'highlight-green') : '';
                 var isViolation = (
-                    (has_nloc && nloc > th_nloc) ||
+                    (has_pline && nloc > th_pline) ||
                     (has_file_comment_ratio && cdrp < th_file_cdrp) ||
                     (has_file_lines && line_cnt > th_file_lines) ||
                     (has_static_decls && static_decls > th_static_decls)
@@ -4432,7 +4562,7 @@
                 var static_decls = parseInt(o.static_decls) || 0;
                 var unreachable = parseInt(o.unreachable_stmts) || 0;
                 var status = (
-                    (has_nloc && nloc > th_nloc) ||
+                    (has_pline && nloc > th_pline) ||
                     (has_file_comment_ratio && cdrp < th_file_cdrp) ||
                     (has_file_lines && line_cnt > th_file_lines) ||
                     (has_static_decls && static_decls > th_static_decls)
@@ -5914,17 +6044,27 @@
                 {% endif %}
 
                 <!-- General Code Sizing & Documentation -->
-                {% if (HAS_NLOC is defined and HAS_NLOC) or (HAS_SLOC is defined and HAS_SLOC) or (HAS_ELOC is defined and HAS_ELOC) or (HAS_FILE_LINES is defined and HAS_FILE_LINES) or (HAS_COMMENT_RATIO is defined and HAS_COMMENT_RATIO) or (HAS_FILE_COMMENT_RATIO is defined and HAS_FILE_COMMENT_RATIO) %}
+                {% if (HAS_NLOC is defined and HAS_NLOC) or (HAS_PLINE is defined and HAS_PLINE) or (HAS_SLOC is defined and HAS_SLOC) or (HAS_ELOC is defined and HAS_ELOC) or (HAS_FILE_LINES is defined and HAS_FILE_LINES) or (HAS_COMMENT_RATIO is defined and HAS_COMMENT_RATIO) or (HAS_FILE_COMMENT_RATIO is defined and HAS_FILE_COMMENT_RATIO) %}
                 <tr style="background-color: #f8f9fa;"><td colspan="4" style="font-weight: 700; color: #1a252f; border-bottom: 2px solid #ced4da;">General Code Sizing & Documentation</td></tr>
                 {% endif %}
                 {% if HAS_NLOC is defined and HAS_NLOC %}
                 <tr>
                     <td>
-                        <a href="#nloc-distribution-chart" class="metric-param-link" onclick="scrollToChart('nloc-distribution-chart', 'obj_tbl_start'); return false;" title="Click to view Lines of Code (NLOC) chart">📊 Lines of Code Without Comments (NLOC)</a>
+                        <a href="#nloc-distribution-chart" class="metric-param-link" onclick="scrollToChart('nloc-distribution-chart', 'func_tbl_start'); return false;" title="Click to view Function Lines of Code (NLOC) chart">📊 Lines of Code Without Comments (NLOC)</a>
                     </td>
                     <td><strong>&le; {{TH_NLOC}}</strong></td>
-                    <td>Files or functions exceeding {{TH_NLOC}} effective non-comment lines require architectural modularization</td>
+                    <td>Functions exceeding {{TH_NLOC}} effective non-comment lines require modular decomposition</td>
                     <td class="range-bar-cell" id="range-bar-nloc"></td>
+                </tr>
+                {% endif %}
+                {% if HAS_PLINE is defined and HAS_PLINE %}
+                <tr>
+                    <td>
+                        <a href="#pline-distribution-chart" class="metric-param-link" onclick="scrollToChart('pline-distribution-chart', 'obj_tbl_start'); return false;" title="Click to view File Lines of Code Without Comments (PLINE) chart">📊 File Lines of Code Without Comments (PLINE)</a>
+                    </td>
+                    <td><strong>&le; {{TH_PLINE}}</strong></td>
+                    <td>Source files exceeding {{TH_PLINE}} effective non-comment lines (AbsInt PLINE) require architectural modularization</td>
+                    <td class="range-bar-cell" id="range-bar-pline"></td>
                 </tr>
                 {% endif %}
                 {% if HAS_SLOC is defined and HAS_SLOC %}
@@ -6332,25 +6472,50 @@
 
         {% if HAS_NLOC is defined and HAS_NLOC %}
         <div class="dashboard-section">
-            <div class="chart-container" title="SWE.4 Quality Gate Rule: Files or functions exceeding {{TH_NLOC}} effective non-comment lines require architectural modularization">
-                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: Files or functions exceeding {{TH_NLOC}} effective non-comment lines require architectural modularization">
+            <div class="chart-container" title="SWE.4 Quality Gate Rule: Functions exceeding {{TH_NLOC}} effective non-comment lines require modular decomposition">
+                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: Functions exceeding {{TH_NLOC}} effective non-comment lines require modular decomposition">
                     <span>🛡️ SWE.4 Rule</span>
                     <div class="tooltip-box">
                         <strong>SWE.4 Quality Gate Rule</strong>
-                        Files or functions exceeding {{TH_NLOC}} effective non-comment lines require architectural modularization
+                        Functions exceeding {{TH_NLOC}} effective non-comment lines require modular decomposition
                     </div>
                 </div>
                 <div id="nloc-distribution-chart" style="width:100%; height:100%;"></div>
             </div>
-            <div class="chart-container" title="SWE.4 Quality Gate Rule: Files or functions exceeding {{TH_NLOC}} effective non-comment lines require architectural modularization">
-                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: Files or functions exceeding {{TH_NLOC}} effective non-comment lines require architectural modularization">
+            <div class="chart-container" title="SWE.4 Quality Gate Rule: Functions exceeding {{TH_NLOC}} effective non-comment lines require modular decomposition">
+                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: Functions exceeding {{TH_NLOC}} effective non-comment lines require modular decomposition">
                     <span>🛡️ SWE.4 Rule</span>
                     <div class="tooltip-box">
                         <strong>SWE.4 Quality Gate Rule</strong>
-                        Files or functions exceeding {{TH_NLOC}} effective non-comment lines require architectural modularization
+                        Functions exceeding {{TH_NLOC}} effective non-comment lines require modular decomposition
                     </div>
                 </div>
                 <div id="top-nloc-functions-chart" style="width:100%; height:100%;"></div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if HAS_PLINE is defined and HAS_PLINE %}
+        <div class="dashboard-section">
+            <div class="chart-container" title="SWE.4 Quality Gate Rule: Source files exceeding {{TH_PLINE}} effective non-comment lines (AbsInt PLINE) require architectural modularization">
+                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: Source files exceeding {{TH_PLINE}} effective non-comment lines (AbsInt PLINE) require architectural modularization">
+                    <span>🛡️ SWE.4 Rule</span>
+                    <div class="tooltip-box">
+                        <strong>SWE.4 Quality Gate Rule</strong>
+                        Source files exceeding {{TH_PLINE}} effective non-comment lines (AbsInt PLINE) require architectural modularization
+                    </div>
+                </div>
+                <div id="pline-distribution-chart" style="width:100%; height:100%;"></div>
+            </div>
+            <div class="chart-container" title="SWE.4 Quality Gate Rule: Source files exceeding {{TH_PLINE}} effective non-comment lines (AbsInt PLINE) require architectural modularization">
+                <div class="chart-swe4-badge" title="SWE.4 Quality Gate Rule: Source files exceeding {{TH_PLINE}} effective non-comment lines (AbsInt PLINE) require architectural modularization">
+                    <span>🛡️ SWE.4 Rule</span>
+                    <div class="tooltip-box">
+                        <strong>SWE.4 Quality Gate Rule</strong>
+                        Source files exceeding {{TH_PLINE}} effective non-comment lines (AbsInt PLINE) require architectural modularization
+                    </div>
+                </div>
+                <div id="top-pline-files-chart" style="width:100%; height:100%;"></div>
             </div>
         </div>
         {% endif %}
@@ -6652,8 +6817,8 @@
                     {% if HAS_STATIC_DECLS is defined and HAS_STATIC_DECLS %}
                     <button class="btn-filter" data-filter="static_decls" title="Show Static Decls > {{TH_STATIC_DECLS}}">🔴 Static Decls &gt; {{TH_STATIC_DECLS}}</button>
                     {% endif %}
-                    {% if HAS_NLOC is defined and HAS_NLOC %}
-                    <button class="btn-filter" data-filter="nloc" title="Show NLOC > {{TH_NLOC}}">🔴 NLOC &gt; {{TH_NLOC}}</button>
+                    {% if HAS_PLINE is defined and HAS_PLINE %}
+                    <button class="btn-filter" data-filter="nloc" title="Show File NLOC (PLINE) > {{TH_PLINE}}">🔴 PLINE &gt; {{TH_PLINE}}</button>
                     {% endif %}
                     {% if HAS_FILE_COMMENT_RATIO is defined and HAS_FILE_COMMENT_RATIO %}
                     <button class="btn-filter" data-filter="cdrp" title="Show File CDRP < {{FILE_COMMENT_RATIO}}%">🔴 CDRP &lt; {{FILE_COMMENT_RATIO}}%</button>
