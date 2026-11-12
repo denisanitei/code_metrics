@@ -250,6 +250,51 @@ def _is_suite_blocker(suite_cfg, yaml_opts):
     return _is_threshold_blocker(yaml_opts, suite_cfg.get('yaml_keys', ()))
 
 
+def _resolve_yaml_opts(tgen):
+    # resolve code_metrics YAML options for tgen, inheriting shared threshold/blocker settings
+    # from any standalone code_metrics target in the build when not overridden on tgen
+    if tgen is None:
+        return {}
+    _own_opts = getattr(tgen, 'code_metrics', None)
+    if not isinstance(_own_opts, dict):
+        _own_opts = {}
+    if getattr(tgen, 'typ', None) == 'code_metrics':
+        return dict(_own_opts)
+
+    _shared_opts = {}
+    _bld = getattr(tgen, 'bld', None)
+    if _bld is not None:
+        _all_tgens = []
+        if hasattr(_bld, 'get_all_task_gen'):
+            try:
+                _all_tgens = list(_bld.get_all_task_gen())
+            except Exception:
+                _all_tgens = []
+        if not _all_tgens:
+            for _grp in (getattr(_bld, 'groups', None) or []):
+                if isinstance(_grp, (list, tuple)):
+                    _all_tgens.extend(_grp)
+        for _other in _all_tgens:
+            if _other is tgen or _other is None:
+                continue
+            if (
+                getattr(_other, 'typ', None) == 'code_metrics'
+                or getattr(_other, 'target', None) == 'code_metrics'
+                or getattr(_other, 'name', None) == 'code_metrics'
+            ):
+                _cand = getattr(_other, 'code_metrics', None)
+                if isinstance(_cand, dict) and _cand:
+                    for _k, _v in _cand.items():
+                        if _k != 'report_out_path':
+                            _shared_opts[_k] = _v
+                    break
+
+    _merged = dict(_shared_opts)
+    _merged.update(_own_opts)
+    return _merged
+
+
+
 """*************************************************************************************************
 ****************************************************************************************************
 *************************************************************************************************"""
@@ -836,8 +881,8 @@ def process_cc(self):
         # not code_metrics target
         pass
 
-    #get data from yaml
-    yaml_opts = getattr(self, 'code_metrics', {}) or {}
+    #get data from yaml (or inherit shared thresholds from standalone code_metrics target if present)
+    yaml_opts = _resolve_yaml_opts(self)
     report_out_path = yaml_opts.get('report_out_path', None)
 
     CC_THRESHOLD              = _get_opt(yaml_opts, 'cc_threshold', CC_THRESHOLD)

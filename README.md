@@ -161,7 +161,11 @@ Running the `code_metrics` tool produces three main artifacts:
 
 ## Waf Quality Gate & `blocker` Configuration
 
-When running `code_metrics` through Waf, all three reports (`<target>.xml`, `<target>.html`, and `junit_report.xml`) are always generated first with complete violation counts:
+`code_metrics` supports two Waf execution modes:
+* **Post-compilation feature on a build target** (`type: program` / library with `code_metrics` in `tools:`): Source generators (`fsmgen`, `datagen`) and compilation run first, followed by `code_metrics` (`phase=25, 26, 27`). If the build target does not define its own `code_metrics:` block in `options:`, it automatically inherits threshold and `blocker` settings from any standalone `code_metrics` target in the configuration.
+* **Standalone target** (`type: code_metrics` with `code_metrics` in `tools:`): Compilation hooks are suppressed so `code_metrics` executes independently without compiling binaries.
+
+In both modes, all three reports (`<target>.xml`, `<target>.html`, and `junit_report.xml`) are always generated first with complete violation counts:
 * **Per-threshold `blocker`**: Configure any threshold with `value` and `blocker: true` (or `blocker: false`). If a threshold with `blocker: true` has `> 0` violations, Waf logs a `RED` blocker summary and fails the target (`exit code 1`).
 * **Backward-compatible scalar syntax**: Specifying a plain number (e.g. `stmt_threshold: 50`) sets `value: 50` with `blocker: false`.
 * **Global master switch**: You can also set `code_metrics_blocker: true` (or `blocker: true`) directly under `code_metrics:` in YAML to make all active thresholds blockers by default, and override specific thresholds with `blocker: false`.
