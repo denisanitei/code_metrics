@@ -162,13 +162,6 @@ _GLOBAL_BLOCKER_KEYS = (
     'all_thresholds_blocker',
 )
 
-_CODE_METRICS_TASK_CLASSES = (
-    'cc_xml',
-    'cc_xml2html',
-    'cc_xml2junit',
-    'cc_html',
-)
-
 
 def _parse_bool_blocker(value):
     # parse a blocker setting into True (blocker), False (non-blocker), or None (unspecified)
@@ -255,51 +248,6 @@ def _is_threshold_blocker(yaml_opts, keys):
 
 def _is_suite_blocker(suite_cfg, yaml_opts):
     return _is_threshold_blocker(yaml_opts, suite_cfg.get('yaml_keys', ()))
-
-
-def _is_code_metrics_tgen(tgen):
-    if tgen is None:
-        return False
-    if getattr(tgen, 'typ', None) == 'code_metrics':
-        return True
-    _feats = getattr(tgen, 'features', None) or []
-    if isinstance(_feats, str):
-        _feats = _feats.split()
-    return 'code_metrics' in _feats
-
-
-def _iter_bld_task_gens(bld):
-    if bld is None:
-        return []
-    if hasattr(bld, 'get_all_task_gen'):
-        try:
-            return list(bld.get_all_task_gen())
-        except Exception:
-            pass
-    _tgens = []
-    for _grp in (getattr(bld, 'groups', None) or []):
-        if isinstance(_grp, (list, tuple)):
-            _tgens.extend(_grp)
-    return _tgens
-
-
-def _is_code_metrics_task(task):
-    if task is None:
-        return False
-    return task.__class__.__name__ in _CODE_METRICS_TASK_CLASSES
-
-
-def _bind_build_tasks_after_code_metrics(build_tgen, cm_tasks):
-    if build_tgen is None or not cm_tasks:
-        return
-    _cm_set = set(cm_tasks)
-    for _bt in list(getattr(build_tgen, 'tasks', None) or []):
-        if _bt in _cm_set or _is_code_metrics_task(_bt):
-            continue
-        if hasattr(_bt, 'set_run_after'):
-            for _cm_t in cm_tasks:
-                if _cm_t is not None and _bt is not _cm_t:
-                    _bt.set_run_after(_cm_t)
 
 
 """*************************************************************************************************
@@ -1086,82 +1034,29 @@ def process_cc(self):
     rep_template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'report_template.html')
     rep_template_node = root_node.make_node(rep_template_path)
 
-    _base_phase           = int(_get_opt(yaml_opts, 'phase', 1))
-    _task_xml             = self.create_task(
+    self.create_task(
         'cc_xml',
         self.source,
         rep_node,
-        phase=_base_phase)
+        phase=25)
     _task_html            = self.create_task(
         'cc_xml2html',
         rep_node,
         [rep_html, rep_template_node],
-        phase=_base_phase + 1)
+        phase=26)
     _task_html.yaml_opts  = yaml_opts
     _task_junit             = self.create_task(
         'cc_xml2junit',
         xml_path=rep_node,
-        phase=_base_phase + 2)
+        phase=27)
     _task_junit.yaml_opts   = yaml_opts
     _task_junit.target_name = getattr(self, 'target', 'code_metrics')
-
-    if _task_xml is not None and _task_html is not None and hasattr(_task_html, 'set_run_after'):
-        _task_html.set_run_after(_task_xml)
-    if _task_xml is not None and _task_junit is not None and hasattr(_task_junit, 'set_run_after'):
-        _task_junit.set_run_after(_task_xml)
-    if _task_html is not None and _task_junit is not None and hasattr(_task_junit, 'set_run_after'):
-        _task_junit.set_run_after(_task_html)
-
-    _cm_tasks               = tuple(_t for _t in (_task_xml, _task_html, _task_junit) if _t is not None)
-    self._code_metrics_tasks = _cm_tasks
-
-    _bind_build_tasks_after_code_metrics(self, _cm_tasks)
-    if getattr(self, 'typ', None) == 'code_metrics':
-        for _other_tg in _iter_bld_task_gens(getattr(self, 'bld', None)):
-            if _other_tg is not self and getattr(_other_tg, 'typ', None) != 'code_metrics' and getattr(_other_tg, 'posted', False):
-                _bind_build_tasks_after_code_metrics(_other_tg, _cm_tasks)
-
-
-@feature('*')
-@after_method('process_source', 'process_cc', 'apply_link')
-def _ensure_code_metrics_before_build(self):
-    # when any non-code_metrics build target is posted, ensure any code_metrics target runs before compilation
-    if getattr(self, 'typ', None) == 'code_metrics':
-        return
-    _bld = getattr(self, 'bld', None)
-    if _bld is None:
-        _self_cm = getattr(self, '_code_metrics_tasks', None)
-        if _self_cm:
-            _bind_build_tasks_after_code_metrics(self, _self_cm)
-        return
-
-    _all_cm_tasks = list(getattr(self, '_code_metrics_tasks', None) or [])
-    for _tg in _iter_bld_task_gens(_bld):
-        if not _is_code_metrics_tgen(_tg):
-            continue
-        if _tg is not self and not getattr(_tg, 'posted', False):
-            _targets_str = getattr(_bld, 'targets', None)
-            if isinstance(_targets_str, str) and _targets_str.strip() and _targets_str.strip() != '*':
-                _tg_name = getattr(_tg, 'name', None) or getattr(_tg, 'target', None)
-                _existing = [_item.strip() for _item in _targets_str.split(',') if _item.strip()]
-                if _tg_name and _tg_name not in _existing:
-                    _bld.targets = ','.join(_existing + [_tg_name])
-            if hasattr(_tg, 'post'):
-                _tg.post()
-        for _cm_t in (getattr(_tg, '_code_metrics_tasks', None) or []):
-            if _cm_t not in _all_cm_tasks:
-                _all_cm_tasks.append(_cm_t)
-
-    if _all_cm_tasks:
-        _bind_build_tasks_after_code_metrics(self, _all_cm_tasks)
-
 
 """*************************************************************************************************
 ****************************************************************************************************
 *************************************************************************************************"""
 class cc_xml(Task):
-    color  = 'PINK'
-    before = ['cc_xml2html', 'cc_xml2junit', 'c', 'cxx', 'asm', 'cprogram', 'cshlib', 'cstlib']
+    color = 'PINK'
     def sig_vars(self):
         super(cc_xml, self).sig_vars()
         _hfcca_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'hfcca.py')
@@ -1197,9 +1092,7 @@ class cc_xml(Task):
 ****************************************************************************************************
 *************************************************************************************************"""
 class cc_xml2html(Task):
-    color  = 'PINK'
-    after  = ['cc_xml']
-    before = ['cc_xml2junit', 'c', 'cxx', 'asm', 'cprogram', 'cshlib', 'cstlib']
+    color = 'PINK'
     def sig_vars(self):
         super(cc_xml2html, self).sig_vars()
         _tpl_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'report_template.html')
@@ -1555,9 +1448,7 @@ class cc_html(Task):
 ****************************************************************************************************
 *************************************************************************************************"""
 class cc_xml2junit(Task):
-    color  = 'PINK'
-    after  = ['cc_xml', 'cc_xml2html']
-    before = ['c', 'cxx', 'asm', 'cprogram', 'cshlib', 'cstlib']
+    color = 'PINK'
     def sig_vars(self):
         super(cc_xml2junit, self).sig_vars()
         _yaml_opts = getattr(self, 'yaml_opts', None)

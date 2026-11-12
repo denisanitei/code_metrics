@@ -159,18 +159,12 @@ Running the `code_metrics` tool produces three main artifacts:
 
 ---
 
-## Waf Pre-Build Quality Gate & `blocker` Configuration
+## Waf Quality Gate & `blocker` Configuration
 
-When running `code_metrics` through Waf:
-1. **Pre-Build Execution**:
-   * `code_metrics` tasks (`cc_xml` $\rightarrow$ `cc_xml2html` $\rightarrow$ `cc_xml2junit`) run in pre-build phases (`phase=1, 2, 3`) and are scheduled **before** any C/C++ compilation or linking tasks (`c`, `cxx`, `asm`, `cprogram`, `cstlib`, `cshlib`).
-   * If you have a standalone `type: code_metrics` target in your YAML alongside binary targets, building any binary target (even with `--targets=<binary_target>`) automatically runs the `code_metrics` target first before compiling.
-   * Building the `code_metrics` target independently (`waf build --targets=<code_metrics_target>`) runs **only** `code_metrics` without triggering compilation.
-2. **YAML `value` & `blocker` Quality Gate**:
-   * All three reports (`<target>.xml`, `<target>.html`, and `junit_report.xml`) are always generated first with complete violation counts.
-   * **Per-threshold `blocker`**: Configure any threshold with `value` and `blocker: true` (or `blocker: false`). If a threshold with `blocker: true` has `> 0` violations, Waf logs a `RED` blocker summary and immediately fails the build (`exit code 1`) before compiling any source files.
-   * **Backward-compatible scalar syntax**: Specifying a plain number (e.g. `stmt_threshold: 50`) sets `value: 50` with `blocker: false`.
-   * **Global master switch**: You can also set `code_metrics_blocker: true` (or `blocker: true`) directly under `code_metrics:` in YAML to make all active thresholds blockers by default, and override specific thresholds with `blocker: false`.
+When running `code_metrics` through Waf, all three reports (`<target>.xml`, `<target>.html`, and `junit_report.xml`) are always generated first with complete violation counts:
+* **Per-threshold `blocker`**: Configure any threshold with `value` and `blocker: true` (or `blocker: false`). If a threshold with `blocker: true` has `> 0` violations, Waf logs a `RED` blocker summary and fails the target (`exit code 1`).
+* **Backward-compatible scalar syntax**: Specifying a plain number (e.g. `stmt_threshold: 50`) sets `value: 50` with `blocker: false`.
+* **Global master switch**: You can also set `code_metrics_blocker: true` (or `blocker: true`) directly under `code_metrics:` in YAML to make all active thresholds blockers by default, and override specific thresholds with `blocker: false`.
 
 ---
 
