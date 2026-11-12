@@ -9,6 +9,8 @@
 
 ## Configuration Example
 
+Each threshold can be configured either as a dictionary with `value` and `blocker` (`true`/`false`), or as a plain scalar number (which defaults to `blocker: false`):
+
 ```yaml
 - !target
   name: YSP_WIN_GCC
@@ -28,24 +30,50 @@
   - code_metrics:
       report_out_path: target@__cm__
       # HIS Complexity & Size Thresholds
-      cc_threshold: 15
-      nloc_threshold: 100
-      pline_threshold: 200
-      min_comment_ratio: 10
-      min_file_comment_ratio: 10
-      stmt_threshold: 50
-      vocf_threshold: 4.0
+      cc_threshold:
+        value: 15
+        blocker: true
+      nloc_threshold:
+        value: 100
+        blocker: false
+      pline_threshold:
+        value: 200
+        blocker: false
+      min_comment_ratio:
+        value: 10
+        blocker: false
+      min_file_comment_ratio:
+        value: 10
+        blocker: false
+      stmt_threshold:
+        value: 50
+        blocker: false
+      vocf_threshold:
+        value: 4.0
+        blocker: false
       
       # HIS Control Flow & Architecture Thresholds
-      param_threshold: 5
-      return_threshold: 1
-      nesting_depth_threshold: 4
-      goto_threshold: 0
+      param_threshold:
+        value: 5
+        blocker: false
+      return_threshold:
+        value: 1
+        blocker: false
+      nesting_depth_threshold:
+        value: 4
+        blocker: false
+      goto_threshold:
+        value: 0
+        blocker: true
       calling_threshold: 10
       calls_threshold: 7
       path_threshold: 200
-      rec_threshold: 0
-      dead_code_threshold: 0
+      rec_threshold:
+        value: 0
+        blocker: true
+      dead_code_threshold:
+        value: 0
+        blocker: true
       
       # OEM Quality Audit & Coding Standard Thresholds
       call_depth_threshold: 6
@@ -57,7 +85,7 @@
 
 ## Configuration Parameters
 
-All parameters are specified as child keys under the `code_metrics` section of the target options in the YAML configuration.
+All parameters are specified as child keys under the `code_metrics` section of the target options in the YAML configuration. Every threshold accepts either a scalar (`int`/`float`) or a `{value: <limit>, blocker: <bool>}` mapping.
 
 | Parameter | Type | Default | Metric / Standard | Description |
 | :--- | :---: | :---: | :--- | :--- |
@@ -113,39 +141,6 @@ The tool enforces metrics derived from the **Hersteller Initiative Software (HIS
 
 ---
 
-## OEM Quality Audit & Metric Distribution Summary
-
-The generated interactive HTML report includes a dedicated **OEM Quality Audit & Metric Distribution Summary** section. This table provides bin distribution counts with live status evaluation:
-
-| Audit Parameter / Metric Bin | OEM Target Range | Audit Status Criteria |
-| :--- | :---: | :--- |
-| **Cyclomatic $\le 15$** | $\le 15$ | PASS 🟢 (Standard complexity) |
-| **Cyclomatic $> 15-20$** | $> 15 \text{ and } \le 20$ | WARN 🟡 (Acceptable with justification) |
-| **Cyclomatic $> 20-30$** | $> 20 \text{ and } \le 30$ | WARN 🟡 (High complexity, refactoring suggested) |
-| **Cyclomatic $> 30$** | $> 30$ | FAIL 🔴 (Critical complexity violation) |
-| **Unreachable statements $\le 20$** | $\le 20$ statements | PASS 🟢 (Acceptable defensive code) |
-| **Unreachable statements $> 20-30$** | $> 20 \text{ and } \le 30$ | WARN 🟡 (Elevated dead code) |
-| **Unreachable statements $> 30$** | $> 30$ statements | FAIL 🔴 (Excessive dead code) |
-| **Static Declarations $\le 20$** | $\le 20$ per file | PASS 🟢 (Normal static file state) |
-| **Static Declarations $> 20$** | $> 20$ per file | WARN 🟡 (High file-scope state encapsulation) |
-| **Static Path Count $\le 200$** | $\le 200$ paths | PASS 🟢 (Verifiable path count) |
-| **Static Path Count $> 200$** | $> 200$ paths | WARN 🟡 (Combinatorial explosion, refactor required) |
-| **Maximum nesting of control structure $\le 7$** | $\le 7$ levels | PASS 🟢 (Structured control flow) |
-| **Maximum nesting of control structure $> 7$** | $> 7$ levels | FAIL 🔴 (Excessive nesting, review required) |
-| **Call graph depth $\le 6$** | $\le 6$ call levels | PASS 🟢 (Bounded architectural depth) |
-| **Call graph depth $> 6$** | $> 6$ call levels | WARN 🟡 (Deep call stack, potential stack risk) |
-| **IF without ELSE** | $= 0$ violations | PASS 🟢 when $0$, FAIL 🔴 when $> 0$ |
-| **Number of Lines in a file $\le 1200$** | $\le 1200$ lines | PASS 🟢 (Standard file length) |
-| **Number of Lines in a file $> 1200$** | $> 1200$ lines | WARN 🟡 (Oversized file, split recommended) |
-| **Non used variables** | $= 0$ violations | PASS 🟢 when $0$, FAIL 🔴 when $> 0$ |
-| **Number of functions** | All detected functions | INFO ℹ️ (Total function inventory count) |
-| **MISRA - functions to be checked** | C/C++ source functions | INFO ℹ️ (Excludes assembly / non-C functions) |
-| **MISRA - functions checked** | Analyzed functions | INFO ℹ️ (Functions evaluated by rule engine) |
-
-> **Interactive Filtering**: Clicking any row in the OEM Quality Audit summary in the HTML report automatically applies the corresponding filter to the Functions or Files table below it for instant inspection.
-
----
-
 ## Output Artifacts
 
 Running the `code_metrics` tool produces three main artifacts:
@@ -156,7 +151,6 @@ Running the `code_metrics` tool produces three main artifacts:
    Standalone, self-contained dashboard (no external CDN or internet connection required). Contains:
    - Executive quality KPIs and pass/fail rate badges.
    - Interactive Cyclomatic Complexity and NLOC distribution bar charts.
-   - OEM Quality Audit summary with clickable filter triggers.
    - Sortable, searchable Function and File tables with active filter chips.
    - CSV export capability for custom spreadsheet analysis.
    - Threshold Limits configuration reference table.
@@ -165,26 +159,18 @@ Running the `code_metrics` tool produces three main artifacts:
 
 ---
 
-## Waf `--params` Quality Gate Enforcement (Blocker Thresholds)
+## Waf Pre-Build Quality Gate & `blocker` Configuration
 
-When running `code_metrics` through Waf, all three reports (`<target>.xml`, `<target>.html`, and `junit_report.xml`) are always generated first with complete violation counts. Whether a threshold violation **fails the Waf target** depends on Waf's `--params` dictionary:
-
-* **Default (`--params` omitted or threshold not listed)**: Non-blocking — the Waf target **passes** (`exit code 0`) even if metric findings exist.
-* **Per-threshold blocker**: Set any YAML threshold key (e.g., `cc_threshold`, `goto_threshold`, `min_comment_ratio`, `static_declarations_threshold`) or `<metric>_blocker` alias to a truthy/blocker value (`True`, `1`, `"true"`, `"yes"`, `"blocker"`, `"block"`, `"fail"`). If that active suite has `> 0` violations, Waf logs a `RED` blocker summary and fails the target (`exit code 1`).
-* **Global master switch**: Set `code_metrics_blocker: True` to make all active thresholds blockers, while optionally overriding specific thresholds to non-blocking (`False`, `0`, `"false"`, `"non_blocker"`, `"pass"`, `"warn"`).
-
-### Waf CLI Examples
-
-```bash
-# 1. No --params specified: generates all reports and PASSES even when findings exist
-waf build
-
-# 2. Enforce target failure ONLY when Cyclomatic Complexity or GOTO thresholds have violations
-waf build --params="{'cc_threshold': True, 'goto_threshold': 'blocker'}"
-
-# 3. Enforce all active thresholds as blockers EXCEPT function comment ratio
-waf build --params="{'code_metrics_blocker': True, 'min_comment_ratio': False}"
-```
+When running `code_metrics` through Waf:
+1. **Pre-Build Execution**:
+   * `code_metrics` tasks (`cc_xml` $\rightarrow$ `cc_xml2html` $\rightarrow$ `cc_xml2junit`) run in pre-build phases (`phase=1, 2, 3`) and are scheduled **before** any C/C++ compilation or linking tasks (`c`, `cxx`, `asm`, `cprogram`, `cstlib`, `cshlib`).
+   * If you have a standalone `type: code_metrics` target in your YAML alongside binary targets, building any binary target (even with `--targets=<binary_target>`) automatically runs the `code_metrics` target first before compiling.
+   * Building the `code_metrics` target independently (`waf build --targets=<code_metrics_target>`) runs **only** `code_metrics` without triggering compilation.
+2. **YAML `value` & `blocker` Quality Gate**:
+   * All three reports (`<target>.xml`, `<target>.html`, and `junit_report.xml`) are always generated first with complete violation counts.
+   * **Per-threshold `blocker`**: Configure any threshold with `value` and `blocker: true` (or `blocker: false`). If a threshold with `blocker: true` has `> 0` violations, Waf logs a `RED` blocker summary and immediately fails the build (`exit code 1`) before compiling any source files.
+   * **Backward-compatible scalar syntax**: Specifying a plain number (e.g. `stmt_threshold: 50`) sets `value: 50` with `blocker: false`.
+   * **Global master switch**: You can also set `code_metrics_blocker: true` (or `blocker: true`) directly under `code_metrics:` in YAML to make all active thresholds blockers by default, and override specific thresholds with `blocker: false`.
 
 ---
 
