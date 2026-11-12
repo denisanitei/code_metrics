@@ -2802,9 +2802,14 @@ class UniversalAnalyzer(list):
 
     def CONDITION(self, token):
         self.TOKEN(token)
-        self.current_function.add_condition()
+        if self.current_function is not None:
+            self.current_function.add_condition()
 
     def TOKEN(self, text):
+        if self.current_function is None:
+            if self.newline:
+                self.newline = False
+            return
         if text.startswith('#'):
             self.in_pp_line = True
             if text in ('#if', '#elif', '#else', '#endif'):
@@ -3096,7 +3101,8 @@ class UniversalAnalyzer(list):
                 self.decl_prefix_tokens.append(_tok)
 
     def PARAMETER(self, token):
-        self.current_function.add_parameter(token)
+        if self.current_function is not None:
+            self.current_function.add_parameter(token)
         self.ADD_TO_LONG_FUNCTION_NAME(" " + token)
 
     END_OF_FUNCTION = 1
@@ -3135,7 +3141,8 @@ class UniversalAnalyzer(list):
                 self.decl_prefix_tokens = []
                 self.func_header_tokens = []
                 self.current_function   = None
-                yield _finished_fun
+                if _finished_fun is not None:
+                    yield _finished_fun
             else:
                 code(self, text)
 
@@ -3513,6 +3520,11 @@ def generate_tokens(source_code):
                 for _cm in _pp_comment_pattern.finditer(t):
                     if _cm.group(1) is not None:
                         yield _cm.group(1), l
+            elif _norm_pp.startswith('#elif'):
+                yield '#elif', l
+                for _cm in _pp_comment_pattern.finditer(t):
+                    if _cm.group(1) is not None:
+                        yield _cm.group(1), l
             elif _norm_pp.startswith('#if'):
                 yield '#if', l
                 for _cm in _pp_comment_pattern.finditer(t):
@@ -3554,7 +3566,7 @@ def tokens_from_code_with_multiple_newlines(source_code):
         if token.startswith("#"):
             token = "#" + token[1:].strip()
 
-        if token == "#define":
+        if token in ("#define", "#if", "#elif", "#endif"):
             while(1):
                 bindex = index + 1
                 index = source_code.find('\n', bindex)
@@ -3572,11 +3584,6 @@ def tokens_from_code_with_multiple_newlines(source_code):
             index += 2
             token = source_code[m.start(0):index]
         elif token == '//':
-            index = source_code.find('\n', index)
-            if index == -1:
-                index = len(source_code)
-            token = source_code[m.start(0):index]
-        elif token in ('#if', '#endif'):
             index = source_code.find('\n', index)
             if index == -1:
                 index = len(source_code)
